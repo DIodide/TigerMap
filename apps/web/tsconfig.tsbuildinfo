@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/campusmap.tsx","./src/components/categorysidebar.tsx","./src/components/poidetail.tsx","./src/components/searchbar.tsx","./src/utils/categories.ts"],"version":"5.9.3"}
