@@ -28,6 +28,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Ramp: "#64748b",
   Steps: "#94a3b8",
   Information: "#0ea5e9",
+  Shop: "#8b5cf6",
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
