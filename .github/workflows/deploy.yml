@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-frontend:
+    name: Frontend → Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+        working-directory: apps/web
+
+      - name: Build
+        working-directory: apps/web
+        env:
+          VITE_CAMPUS_MAP_TOKEN: ${{ secrets.VITE_CAMPUS_MAP_TOKEN }}
+          VITE_CAMPUS_MAP_STYLE: ${{ secrets.VITE_CAMPUS_MAP_STYLE }}
+          VITE_TIGERAPPS_MAPBOX_TOKEN: ${{ secrets.VITE_TIGERAPPS_MAPBOX_TOKEN }}
+        run: npx vite build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name=tigermap --commit-dirty=true
+
+  deploy-backend:
+    name: Backend → EC2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            export PATH=$HOME/.bun/bin:$PATH
+            cd ~/TigerMap
+            git pull origin main
+            bun install
+            sudo systemctl restart tigermap-api
