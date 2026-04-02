@@ -30,6 +30,11 @@ export function App() {
   }, [pois]);
 
   const filteredPOIs = useMemo(() => {
+    // No pins visible by default — user must search or select a category
+    if (activeCategories.size === 0 && !searchQuery.trim()) {
+      return [];
+    }
+
     let result = pois;
 
     if (activeCategories.size > 0) {
