@@ -5,6 +5,7 @@ import { getCategoryColor, getCategoryIcon } from "../utils/categories";
 
 const CAMPUS_MAP_TOKEN = import.meta.env.VITE_CAMPUS_MAP_TOKEN;
 const CAMPUS_MAP_STYLE = import.meta.env.VITE_CAMPUS_MAP_STYLE;
+const TIGERAPPS_TOKEN = import.meta.env.VITE_TIGERAPPS_MAPBOX_TOKEN;
 
 interface CampusMapProps {
   pois: POI[];
@@ -23,6 +24,73 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
     [onSelectPOI],
   );
 
+  // Add downtown buildings overlay after the campus map style loads
+  const handleMapLoad = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !TIGERAPPS_TOKEN) return;
+
+    // Add our downtown buildings tileset as a source
+    if (!map.getSource("downtown")) {
+      map.addSource("downtown", {
+        type: "vector",
+        url: `mapbox://tigerapps.downtown-princeton-buildings?access_token=${TIGERAPPS_TOKEN}`,
+      });
+
+      // Insert building layers before POI labels if possible
+      const firstSymbolId = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+
+      map.addLayer(
+        {
+          id: "downtown-buildings-fill",
+          type: "fill",
+          source: "downtown",
+          "source-layer": "downtown-princeton-buildings",
+          paint: {
+            "fill-color": "#b8c8b0",
+            "fill-opacity": 0.85,
+          },
+        },
+        firstSymbolId,
+      );
+
+      map.addLayer(
+        {
+          id: "downtown-buildings-outline",
+          type: "line",
+          source: "downtown",
+          "source-layer": "downtown-princeton-buildings",
+          paint: {
+            "line-color": "#8fa087",
+            "line-width": 0.5,
+            "line-opacity": 0.6,
+          },
+        },
+        firstSymbolId,
+      );
+
+      map.addLayer({
+        id: "downtown-buildings-labels",
+        type: "symbol",
+        source: "downtown",
+        "source-layer": "downtown-princeton-buildings",
+        filter: ["has", "name"],
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": 11,
+          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+          "text-max-width": 8,
+          "text-anchor": "center",
+          "text-allow-overlap": false,
+        },
+        paint: {
+          "text-color": "#3d3d3d",
+          "text-halo-color": "rgba(255,255,255,0.8)",
+          "text-halo-width": 1,
+        },
+      });
+    }
+  }, []);
+
   return (
     <MapGL
       ref={mapRef}
@@ -30,10 +98,14 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
       initialViewState={{ longitude: -74.6554, latitude: 40.3473, zoom: 16, pitch: 0, bearing: 0 }}
       minZoom={14}
       maxZoom={19}
-      maxBounds={[[-74.669, 40.338], [-74.645, 40.356]]}
+      maxBounds={[
+        [-74.675, 40.335],
+        [-74.645, 40.358],
+      ]}
       mapStyle={CAMPUS_MAP_STYLE}
       style={{ width: "100%", height: "100%" }}
       reuseMaps
+      onLoad={handleMapLoad}
       onClick={() => onSelectPOI(null)}
     >
       <NavigationControl position="top-right" showCompass />
