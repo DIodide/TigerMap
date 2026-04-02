@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CampusMap } from "./components/CampusMap";
 import { CategorySidebar } from "./components/CategorySidebar";
+import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
-import type { POI } from "./types";
+import type { FreefoodPost, POI } from "./types";
 
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
@@ -11,11 +12,25 @@ export function App() {
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [freefoodPosts, setFreefoodPosts] = useState<FreefoodPost[]>([]);
+  const [selectedFreefood, setSelectedFreefood] = useState<FreefoodPost | null>(null);
 
   useEffect(() => {
     fetch("/data/pois.json")
       .then((r) => r.json())
       .then((data: POI[]) => setPois(data));
+  }, []);
+
+  // Fetch free food feed on mount + every 2 minutes
+  useEffect(() => {
+    const load = () =>
+      fetch("/api/freefood/feed?hours=9")
+        .then((r) => r.json())
+        .then((data) => setFreefoodPosts(data.emails ?? []))
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   const categories = useMemo(() => {
@@ -66,7 +81,14 @@ export function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <CampusMap pois={filteredPOIs} selectedPOI={selectedPOI} onSelectPOI={setSelectedPOI} />
+      <CampusMap
+        pois={filteredPOIs}
+        selectedPOI={selectedPOI}
+        onSelectPOI={setSelectedPOI}
+        freefoodPosts={freefoodPosts}
+        selectedFreefood={selectedFreefood}
+        onSelectFreefood={setSelectedFreefood}
+      />
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-10">
@@ -99,6 +121,9 @@ export function App() {
       )}
 
       {selectedPOI && <POIDetail poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
+      {selectedFreefood && (
+        <FreefoodDetail post={selectedFreefood} onClose={() => setSelectedFreefood(null)} />
+      )}
     </div>
   );
 }

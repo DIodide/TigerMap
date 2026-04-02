@@ -4,6 +4,8 @@ import { Database } from "bun:sqlite";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { freefoodRoutes } from "./freefood/routes.js";
+import { initFreefoodDb, startAutoScraper } from "./freefood/scraper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../../data");
@@ -20,8 +22,9 @@ await app.register(fastifyStatic, {
   decorateReply: false,
 });
 
-// Open SQLite database
+// Open SQLite databases
 const db = new Database(path.join(DATA_DIR, "pois.sqlite"), { readonly: true });
+const freefoodDb = initFreefoodDb(DATA_DIR);
 
 // Get all POIs
 app.get("/api/pois", async () => {
@@ -63,11 +66,21 @@ app.get("/api/categories", async () => {
     .all();
 });
 
+// Register freefood routes
+await app.register(freefoodRoutes(freefoodDb));
+
 // Start server
 const PORT = Number(process.env.PORT) || 3001;
 try {
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`TigerMap API running on http://localhost:${PORT}`);
+
+  // Start auto-scraper (every 10 minutes) if credentials are configured
+  if (process.env.LISTSERV_EMAIL && process.env.LISTSERV_PASSWORD) {
+    startAutoScraper(freefoodDb);
+  } else {
+    console.log("[freefood] Skipping auto-scraper (LISTSERV_EMAIL/LISTSERV_PASSWORD not set)");
+  }
 } catch (err) {
   app.log.error(err);
   process.exit(1);
