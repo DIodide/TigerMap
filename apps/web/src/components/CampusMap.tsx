@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Map as MapGL, type MapRef, Marker, NavigationControl, Popup } from "react-map-gl/mapbox";
-import type { FreefoodPost, POI } from "../types";
+import type { EatingClub, FreefoodPost, POI } from "../types";
 import { getCategoryColor, getCategoryIcon } from "../utils/categories";
 
 const CAMPUS_MAP_TOKEN = import.meta.env.VITE_CAMPUS_MAP_TOKEN;
@@ -14,6 +14,9 @@ interface CampusMapProps {
   freefoodPosts: FreefoodPost[];
   selectedFreefood: FreefoodPost | null;
   onSelectFreefood: (post: FreefoodPost | null) => void;
+  eatingClubs: EatingClub[];
+  selectedClub: EatingClub | null;
+  onSelectClub: (club: EatingClub | null) => void;
 }
 
 export function CampusMap({
@@ -23,6 +26,9 @@ export function CampusMap({
   freefoodPosts,
   selectedFreefood,
   onSelectFreefood,
+  eatingClubs,
+  selectedClub,
+  onSelectClub,
 }: CampusMapProps) {
   const mapRef = useRef<MapRef>(null);
 
@@ -39,23 +45,35 @@ export function CampusMap({
     (post: FreefoodPost) => {
       onSelectFreefood(post);
       onSelectPOI(null);
+      onSelectClub(null);
       mapRef.current?.flyTo({ center: [post.lng, post.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood],
+    [onSelectPOI, onSelectFreefood, onSelectClub],
+  );
+
+  const handleClubClick = useCallback(
+    (club: EatingClub) => {
+      onSelectClub(club);
+      onSelectPOI(null);
+      onSelectFreefood(null);
+      mapRef.current?.flyTo({ center: [club.lng, club.lat], zoom: 17, duration: 500 });
+    },
+    [onSelectPOI, onSelectFreefood, onSelectClub],
   );
 
   // Fetch Princeton's style, inject TigerApps tileset sources + custom layers
-  const [mapStyle, setMapStyle] = useState<object | string | undefined>(undefined);
+  const [mapStyle, setMapStyle] = useState<any>(undefined);
 
   useEffect(() => {
     const styleUrl = `https://api.mapbox.com/styles/v1/applied-information-group/cld1kdenc001001m89xs12zvl?access_token=${CAMPUS_MAP_TOKEN}`;
     fetch(styleUrl)
       .then((r) => r.json())
       .then((style) => {
-        // Add TigerApps tilesets to the composite source
-        const originalUrl: string = style.sources.composite.url;
-        style.sources.composite.url =
-          originalUrl + ",tigerapps.downtown-princeton-buildings,tigerapps.8mfuncwk";
+        // Add TigerApps tilesets as a separate source (different token)
+        style.sources["tigerapps"] = {
+          url: "mapbox://tigerapps.downtown-princeton-buildings,tigerapps.8mfuncwk",
+          type: "vector",
+        };
 
         // Find insertion point: before first symbol layer
         const firstSymIdx = style.layers.findIndex((l: { type: string }) => l.type === "symbol");
@@ -66,21 +84,21 @@ export function CampusMap({
           {
             id: "downtown-buildings-shadow",
             type: "fill",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "downtown-princeton-buildings",
             paint: { "fill-color": "rgba(0,0,0,0.08)", "fill-translate": [2, 2] },
           },
           {
             id: "downtown-buildings",
             type: "fill",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "downtown-princeton-buildings",
             paint: { "fill-color": "#b8c8b0", "fill-opacity": 0.85 },
           },
           {
             id: "downtown-buildings-outline",
             type: "line",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "downtown-princeton-buildings",
             paint: { "line-color": "#8fa087", "line-width": 0.5, "line-opacity": 0.6 },
           },
@@ -88,14 +106,14 @@ export function CampusMap({
           {
             id: "highlighted-restaurants-fill",
             type: "fill",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "highlighted-restaurants-3jo06s",
             paint: { "fill-color": "#e8b0b0", "fill-opacity": 0.85 },
           },
           {
             id: "highlighted-restaurants-outline",
             type: "line",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "highlighted-restaurants-3jo06s",
             paint: { "line-color": "#c49090", "line-width": 1 },
           },
@@ -108,7 +126,7 @@ export function CampusMap({
           {
             id: "downtown-buildings-labels",
             type: "symbol",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "downtown-princeton-buildings",
             filter: ["has", "name"],
             layout: {
@@ -127,7 +145,7 @@ export function CampusMap({
           {
             id: "highlighted-restaurants-labels",
             type: "symbol",
-            source: "composite",
+            source: "tigerapps",
             "source-layer": "highlighted-restaurants-3jo06s",
             filter: ["has", "name"],
             layout: {
@@ -163,8 +181,9 @@ export function CampusMap({
       transformRequest={(url: string) => {
         // Route TigerApps tileset requests through the TigerApps token
         if (url.includes("tigerapps.") && TIGERAPPS_TOKEN) {
-          return { url: url.replace(/access_token=[^&]+/, `access_token=${TIGERAPPS_TOKEN}`) };
+          return { url: url.replace(/access_token=[^&]+/, `access_token=${TIGERAPPS_TOKEN}`) } as any;
         }
+        return { url } as any;
       }}
       initialViewState={{ longitude: -74.6554, latitude: 40.3473, zoom: 16, pitch: 0, bearing: 0 }}
       minZoom={14}
@@ -176,7 +195,7 @@ export function CampusMap({
       mapStyle={mapStyle}
       style={{ width: "100%", height: "100%" }}
       reuseMaps
-      onClick={() => { onSelectPOI(null); onSelectFreefood(null); }}
+      onClick={() => { onSelectPOI(null); onSelectFreefood(null); onSelectClub(null); }}
     >
       <NavigationControl position="top-right" showCompass />
 
@@ -227,6 +246,79 @@ export function CampusMap({
           </div>
         </Marker>
       ))}
+
+      {/* Eating club markers */}
+      {eatingClubs.map((club) => (
+        <Marker
+          key={`club-${club.name}`}
+          longitude={club.lng}
+          latitude={club.lat}
+          anchor="bottom"
+          offset={[0, -8]}
+          onClick={(e) => {
+            e.originalEvent.stopPropagation();
+            handleClubClick(club);
+          }}
+        >
+          <div
+            className={`eating-club-marker ${selectedClub?.name === club.name ? "eating-club-marker-selected" : ""}`}
+            title={club.name}
+          >
+            <img
+              src={`/api/images/eating-clubs/sprites/${club.sprite}@2x.png`}
+              alt={club.name}
+              className="w-8 h-8 rounded-full object-contain"
+            />
+            {club.eventCount > 0 && (
+              <span className="eating-club-badge">{club.eventCount}</span>
+            )}
+          </div>
+        </Marker>
+      ))}
+
+      {/* Eating club popup */}
+      {selectedClub && (
+        <Popup
+          longitude={selectedClub.lng}
+          latitude={selectedClub.lat}
+          anchor="bottom"
+          offset={[0, -20] as [number, number]}
+          closeOnClick={false}
+          onClose={() => onSelectClub(null)}
+          maxWidth="320px"
+        >
+          <div className="p-4 min-w-[260px]">
+            <div className="flex items-center gap-3 mb-3">
+              <img
+                src={`/api/images/eating-clubs/sprites/${selectedClub.sprite}@2x.png`}
+                alt={selectedClub.name}
+                className="w-10 h-10 rounded-full object-contain"
+              />
+              <div>
+                <h3 className="text-base font-bold text-gray-900">{selectedClub.name}</h3>
+                <span className="text-xs text-gray-500">Eating Club</span>
+              </div>
+            </div>
+            {selectedClub.recentEvents.length > 0 ? (
+              <div>
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Recent Events</h4>
+                <div className="space-y-2">
+                  {selectedClub.recentEvents.map((event) => (
+                    <div key={event.id} className="border-l-2 border-orange-300 pl-2">
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{event.subject}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(event.date).toLocaleDateString()} · {event.type || "Event"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No recent events</p>
+            )}
+          </div>
+        </Popup>
+      )}
 
       {selectedPOI && (
         <Popup

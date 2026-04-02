@@ -17,6 +17,24 @@ export interface POI {
   access?: string;
 }
 
+export interface EatingClubEvent {
+  id: number;
+  subject: string;
+  author: string;
+  date: string;
+  type: string | null;
+  preview: string;
+}
+
+export interface EatingClub {
+  name: string;
+  lat: number;
+  lng: number;
+  sprite: string;
+  eventCount: number;
+  recentEvents: EatingClubEvent[];
+}
+
 export interface FreefoodPost {
   id: number;
   message_id: string;

@@ -4,6 +4,8 @@ import { Database } from "bun:sqlite";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { registerEatingClubRoutes } from "./eatingclubs/routes.js";
+import { initEatingClubDb, startEatingClubScraper } from "./eatingclubs/scraper.js";
 import { freefoodRoutes } from "./freefood/routes.js";
 import { initFreefoodDb, startAutoScraper } from "./freefood/scraper.js";
 
@@ -25,6 +27,7 @@ await app.register(fastifyStatic, {
 // Open SQLite databases
 const db = new Database(path.join(DATA_DIR, "pois.sqlite"), { readonly: true });
 const freefoodDb = initFreefoodDb(DATA_DIR);
+const eatingClubDb = initEatingClubDb(DATA_DIR);
 
 // Get all POIs
 app.get("/api/pois", async () => {
@@ -69,6 +72,9 @@ app.get("/api/categories", async () => {
 // Register freefood routes
 await app.register(freefoodRoutes(freefoodDb));
 
+// Register eating club routes
+registerEatingClubRoutes(app, eatingClubDb);
+
 // Start server
 const PORT = Number(process.env.PORT) || 3001;
 try {
@@ -78,8 +84,9 @@ try {
   // Start auto-scraper (every 10 minutes) if credentials are configured
   if (process.env.LISTSERV_EMAIL && process.env.LISTSERV_PASSWORD) {
     startAutoScraper(freefoodDb);
+    startEatingClubScraper(eatingClubDb); // every 30 min
   } else {
-    console.log("[freefood] Skipping auto-scraper (LISTSERV_EMAIL/LISTSERV_PASSWORD not set)");
+    console.log("[freefood] Skipping auto-scrapers (LISTSERV_EMAIL/LISTSERV_PASSWORD not set)");
   }
 } catch (err) {
   app.log.error(err);

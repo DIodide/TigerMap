@@ -4,7 +4,7 @@ import { CategorySidebar } from "./components/CategorySidebar";
 import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
-import type { FreefoodPost, POI } from "./types";
+import type { EatingClub, FreefoodPost, POI } from "./types";
 
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
@@ -14,11 +14,21 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [freefoodPosts, setFreefoodPosts] = useState<FreefoodPost[]>([]);
   const [selectedFreefood, setSelectedFreefood] = useState<FreefoodPost | null>(null);
+  const [eatingClubs, setEatingClubs] = useState<EatingClub[]>([]);
+  const [selectedClub, setSelectedClub] = useState<EatingClub | null>(null);
 
   useEffect(() => {
     fetch("/data/pois.json")
       .then((r) => r.json())
       .then((data: POI[]) => setPois(data));
+  }, []);
+
+  // Fetch eating clubs on mount
+  useEffect(() => {
+    fetch("/api/eating-clubs")
+      .then((r) => r.json())
+      .then((data) => setEatingClubs(data.clubs ?? []))
+      .catch(() => {});
   }, []);
 
   // Fetch free food feed on mount + every 2 minutes
@@ -88,6 +98,9 @@ export function App() {
         freefoodPosts={freefoodPosts}
         selectedFreefood={selectedFreefood}
         onSelectFreefood={setSelectedFreefood}
+        eatingClubs={eatingClubs}
+        selectedClub={selectedClub}
+        onSelectClub={setSelectedClub}
       />
 
       {/* Header */}

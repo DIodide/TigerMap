@@ -84,3 +84,48 @@ body,
     box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
   }
 }
+
+/* ── Eating club markers ─────────────────────────── */
+.eating-club-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #d4a574;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.eating-club-marker:hover {
+  transform: scale(1.15);
+  border-color: #c4844a;
+}
+
+.eating-club-marker-selected {
+  transform: scale(1.2);
+  border-color: #c4844a;
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.4);
+}
+
+.eating-club-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
