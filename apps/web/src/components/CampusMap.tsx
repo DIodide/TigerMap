@@ -44,7 +44,7 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
           id: "downtown-buildings-fill",
           type: "fill",
           source: "downtown",
-          "source-layer": "downtown-princeton-buildings",
+          "source-layer": "Downtown Princeton Buildings",
           paint: {
             "fill-color": "#b8c8b0",
             "fill-opacity": 0.85,
@@ -58,7 +58,7 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
           id: "downtown-buildings-outline",
           type: "line",
           source: "downtown",
-          "source-layer": "downtown-princeton-buildings",
+          "source-layer": "Downtown Princeton Buildings",
           paint: {
             "line-color": "#8fa087",
             "line-width": 0.5,
@@ -72,7 +72,7 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
         id: "downtown-buildings-labels",
         type: "symbol",
         source: "downtown",
-        "source-layer": "downtown-princeton-buildings",
+        "source-layer": "Downtown Princeton Buildings",
         filter: ["has", "name"],
         layout: {
           "text-field": ["get", "name"],
