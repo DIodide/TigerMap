@@ -31,14 +31,21 @@ const CLUB_NAMES = EATING_CLUBS.map((c) => c.name).join(", ");
 
 /** Keywords that suggest an email might be about an eating club event. */
 const EC_KEYWORDS = [
-  "tiger inn", " ti ", "ivy club", "cottage", "cap and gown", "cap & gown",
-  "colonial club", "terrace", "tower club", "quadrangle", " quad ",
-  "charter", "cloister", "cannon", "dial elm", "eating club",
-  "puid", "list party", "open party", "bicker", "prospect ave",
-  "the street", "lawnparties", "lawn parties", "tap night",
+  // Club name tags in subject (most reliable)
   "[ti]", "[tfc]", "[ptc]", "[quad]", "[pcc]", "[cde]",
-  "@ tiger", "@ ivy", "@ cottage", "@ cap", "@ colonial",
-  "@ terrace", "@ tower", "@ quad", "@ charter", "@ cloister", "@ cannon",
+  "[tiger", "[ivy]", "[cottage]", "[colonial]", "[terrace]", "[tower]",
+  "[charter]", "[cloister]", "[cannon]", "[cap",
+  // Club names with context
+  "tiger inn", "ivy club", "cap and gown", "cap & gown",
+  "colonial club", "tower club", "quadrangle club", "terrace club",
+  "charter club", "cloister inn", "cannon dial elm",
+  // Abbreviations
+  "@ tfc", "@ ptc", "@ ti ", "@ colo", "@ quad",
+  "@ terrace", "@ tower", "@ colonial", "@ cottage", "@ charter",
+  "@ cap", "@ cloister", "@ cannon", "@ ivy",
+  // Event types unique to eating clubs
+  "puid", "list party", "tap night", "lawnparties", "lawn parties",
+  "eating club", "the street",
 ];
 
 /** Quick keyword pre-filter to avoid unnecessary LLM calls. */

@@ -88,11 +88,11 @@ body,
 /* ── Eating club markers ─────────────────────────── */
 .eating-club-marker {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: white;
-  border: 2.5px solid #d4a574;
+  border: 2px solid #d4a574;
   display: flex;
   align-items: center;
   justify-content: center;

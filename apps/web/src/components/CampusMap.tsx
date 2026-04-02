@@ -267,7 +267,7 @@ export function CampusMap({
             <img
               src={`/api/images/eating-clubs/sprites/${club.sprite}@2x.png`}
               alt={club.name}
-              className="w-8 h-8 rounded-full object-contain"
+              className="w-5 h-5 rounded-full object-contain"
             />
             {club.eventCount > 0 && (
               <span className="eating-club-badge">{club.eventCount}</span>
