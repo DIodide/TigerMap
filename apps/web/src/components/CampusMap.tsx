@@ -33,7 +33,11 @@ export function CampusMap({ pois, selectedPOI, onSelectPOI }: CampusMapProps) {
     if (!map.getSource("downtown")) {
       map.addSource("downtown", {
         type: "vector",
-        url: `mapbox://tigerapps.downtown-princeton-buildings?access_token=${TIGERAPPS_TOKEN}`,
+        tiles: [
+          `https://a.tiles.mapbox.com/v4/tigerapps.downtown-princeton-buildings/{z}/{x}/{y}.vector.pbf?access_token=${TIGERAPPS_TOKEN}`,
+        ],
+        minzoom: 0,
+        maxzoom: 16,
       });
 
       // Insert building layers before POI labels if possible
