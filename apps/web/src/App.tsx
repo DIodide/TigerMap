@@ -9,7 +9,7 @@ import type { FreefoodPost, POI } from "./types";
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(["Restaurant"]));
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [freefoodPosts, setFreefoodPosts] = useState<FreefoodPost[]>([]);
