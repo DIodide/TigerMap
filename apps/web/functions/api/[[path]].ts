@@ -1,12 +1,18 @@
 /** Cloudflare Pages Function — proxies /api/* to the EC2 backend. */
-const API_ORIGIN = "http://54.147.149.212";
 
-export const onRequest: PagesFunction = async ({ request }) => {
+interface Env {
+  API_HOST: string;
+}
+
+export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
+  const host = env.API_HOST || "54.147.149.212";
+  const origin = `http://${host}`;
+
   const url = new URL(request.url);
-  const target = `${API_ORIGIN}${url.pathname}${url.search}`;
+  const target = `${origin}${url.pathname}${url.search}`;
 
   const headers = new Headers();
-  headers.set("Host", "54.147.149.212");
+  headers.set("Host", host);
   headers.set("Accept", request.headers.get("Accept") || "*/*");
   if (request.headers.has("Content-Type")) {
     headers.set("Content-Type", request.headers.get("Content-Type")!);
