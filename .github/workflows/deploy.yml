@@ -31,7 +31,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name=tigermap --commit-dirty=true
+          workingDirectory: apps/web
+          command: pages deploy dist --project-name=tigermap --commit-dirty=true
 
   deploy-backend:
     name: Backend → EC2

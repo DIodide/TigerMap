@@ -1,5 +1,5 @@
 /** Cloudflare Pages Function — proxies /api/* to the EC2 backend. */
-const API_ORIGIN = "http://ec2-54-147-149-212.compute-1.amazonaws.com";
+const API_ORIGIN = "http://54.147.149.212";
 
 export const onRequest: PagesFunction = async ({ request }) => {
   const url = new URL(request.url);
