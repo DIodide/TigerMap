@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CampusMap } from "./components/CampusMap";
 import { CategorySidebar } from "./components/CategorySidebar";
+import { EatingClubDetail } from "./components/EatingClubDetail";
 import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
@@ -136,6 +137,9 @@ export function App() {
       {selectedPOI && <POIDetail poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
       {selectedFreefood && (
         <FreefoodDetail post={selectedFreefood} onClose={() => setSelectedFreefood(null)} />
+      )}
+      {selectedClub && (
+        <EatingClubDetail club={selectedClub} onClose={() => setSelectedClub(null)} />
       )}
     </div>
   );
