@@ -9,18 +9,10 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   const origin = `http://${host}`;
 
   const url = new URL(request.url);
-  const target = `${origin}${url.pathname}${url.search}`;
+  const target = new URL(`${url.pathname}${url.search}`, origin);
 
-  const headers = new Headers();
-  headers.set("Host", host);
-  headers.set("Accept", request.headers.get("Accept") || "*/*");
-  if (request.headers.has("Content-Type")) {
-    headers.set("Content-Type", request.headers.get("Content-Type")!);
-  }
-
-  const res = await fetch(target, {
+  const res = await fetch(target.toString(), {
     method: request.method,
-    headers,
     body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
   });
 
