@@ -105,6 +105,26 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
   { name: "Tower Club", lat: 40.3477, lng: -74.6540 },
   { name: "Cannon Dial Elm", lat: 40.3478, lng: -74.6534 },
 
+  // ── Missing academic buildings ──────────────────────
+  { name: "East Pyne Hall", lat: 40.3490, lng: -74.6587 },
+  { name: "West College", lat: 40.3484, lng: -74.6597 },
+  { name: "Julis Romo Rabinowitz Building (JRR)", lat: 40.3488, lng: -74.6535 },
+  { name: "Whig Hall", lat: 40.3483, lng: -74.6580 },
+  { name: "Clio Hall", lat: 40.3487, lng: -74.6580 },
+  { name: "Icahn Laboratory", lat: 40.3451, lng: -74.6502 },
+  { name: "McGraw Hall", lat: 40.3476, lng: -74.6563 },
+  { name: "Louis A. Simpson International Building", lat: 40.3484, lng: -74.6550 },
+  { name: "Bien Hall", lat: 40.3496, lng: -74.6506 },
+  { name: "Briger Hall", lat: 40.3498, lng: -74.6509 },
+  { name: "Meadows Commons", lat: 40.3389, lng: -74.6447 },
+  { name: "Palmer Square", lat: 40.3498, lng: -74.6607 },
+  { name: "Schultz Laboratory", lat: 40.3448, lng: -74.6510 },
+  { name: "Thomas Laboratory", lat: 40.3454, lng: -74.6506 },
+  { name: "Guyot Hall", lat: 40.3462, lng: -74.6547 },
+  { name: "McCormick Hall", lat: 40.3478, lng: -74.6570 },
+  { name: "Aaron Burr Hall", lat: 40.3502, lng: -74.6566 },
+  { name: "Broadmead Street", lat: 40.3480, lng: -74.6450 },
+
   // ── Other common spots ─────────────────────────────
   { name: "Wawa", lat: 40.3500, lng: -74.6603 },
   { name: "McCarter Theatre", lat: 40.3442, lng: -74.6606 },
@@ -151,6 +171,15 @@ RULES:
 - "Prospect" or "26 Prospect" = "26 Prospect Avenue"
 - "Rocky" = "Rockefeller College"
 - "Caf" or "the caf" = "Lakeside Dining (Commons)"
+- "JRR" = "Julis Romo Rabinowitz Building (JRR)"
+- "East Pyne" or "Pyne" (without "Hall") = "East Pyne Hall"
+- "Icahn" = "Icahn Laboratory"
+- "Simpson" (building context) = "Louis A. Simpson International Building"
+- "Briger" = "Briger Hall"
+- "Bien" = "Bien Hall"
+- "McGraw" = "McGraw Hall"
+- "Whig" = "Whig Hall"
+- "Meadows" = "Meadows Commons"
 - If you truly cannot determine the location, respond with exactly: UNKNOWN
 
 Known locations:
