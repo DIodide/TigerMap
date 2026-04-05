@@ -150,6 +150,34 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
   { name: "Wendell B.", lat: 40.3472, lng: -74.6623 },
   { name: "26 Prospect Avenue", lat: 40.3479, lng: -74.6548 },
   { name: "SPIA (School of Public and International Affairs)", lat: 40.3484, lng: -74.6547 },
+
+  // ── Backfill: commonly referenced but previously missing ──
+  { name: "Campus Club", lat: 40.3487, lng: -74.6495 },
+  { name: "Maeder Hall", lat: 40.3505, lng: -74.6514 },
+  { name: "Lewis Arts Complex (LAS)", lat: 40.3507, lng: -74.6547 },
+  { name: "Sherrerd Hall", lat: 40.3502, lng: -74.6520 },
+  { name: "Bloomberg Hall", lat: 40.3499, lng: -74.6519 },
+  { name: "Peretsman Scully Hall (PSH)", lat: 40.3449, lng: -74.6527 },
+  { name: "Princeton Neuroscience Institute (PNI)", lat: 40.3449, lng: -74.6527 },
+  { name: "Frick Chemistry Lab", lat: 40.3460, lng: -74.6510 },
+  { name: "Andlinger Center", lat: 40.3491, lng: -74.6586 },
+  { name: "Sonia Sotomayor Hall", lat: 40.3471, lng: -74.6615 },
+  { name: "Jones Hall", lat: 40.3492, lng: -74.6544 },
+  { name: "Kanji Hall", lat: 40.3421, lng: -74.6542 },
+  { name: "EBCAO (Edwards-Brown-Cuyler-Adams-Ott)", lat: 40.3478, lng: -74.6575 },
+  { name: "Drapkin Studio", lat: 40.3507, lng: -74.6547 },
+  { name: "Brush Gallery", lat: 40.3507, lng: -74.6547 },
+  { name: "Studio 34", lat: 40.3507, lng: -74.6547 },
+  { name: "U-Store Courtyard", lat: 40.3487, lng: -74.6600 },
+  { name: "CampusRec Lobby", lat: 40.3453, lng: -74.6582 },
+  { name: "Fu Hall", lat: 40.3496, lng: -74.6506 },
+  { name: "Old Graduate College (OGC)", lat: 40.3407, lng: -74.6651 },
+  { name: "RoMa Theatre", lat: 40.3486, lng: -74.6617 },
+  { name: "Poe Field", lat: 40.3445, lng: -74.6478 },
+  { name: "Addy Lounge", lat: 40.3425, lng: -74.6552 },
+  { name: "New South", lat: 40.3419, lng: -74.6553 },
+  { name: "LTL (Lewis Thomas Lab)", lat: 40.3454, lng: -74.6506 },
+  { name: "McLain Pavilion", lat: 40.3452, lng: -74.6552 },
 ];
 
 /** Build the location list string for the LLM prompt. */
@@ -180,6 +208,22 @@ RULES:
 - "McGraw" = "McGraw Hall"
 - "Whig" = "Whig Hall"
 - "Meadows" = "Meadows Commons"
+- "Campus Club" = "Campus Club"
+- "LAS" or "Lewis Arts" = "Lewis Arts Complex (LAS)"
+- "PSH" = "Peretsman Scully Hall (PSH)"
+- "PNI" = "Princeton Neuroscience Institute (PNI)"
+- "Frick" or "Frick atrium" = "Frick Chemistry Lab"
+- "OGC" = "Old Graduate College (OGC)"
+- "EBCAO" = "EBCAO (Edwards-Brown-Cuyler-Adams-Ott)"
+- "Maeder" = "Maeder Hall"
+- "Bloomberg" = "Bloomberg Hall"
+- "Jones" (building context) = "Jones Hall"
+- "Kanji" = "Kanji Hall"
+- "LTL" = "LTL (Lewis Thomas Lab)"
+- "Fu Hall" = "Fu Hall"
+- "CAF" or "caf" followed by a room number = "Lakeside Dining (Commons)"
+- "New South" = "New South"
+- "Sherrerd" = "Sherrerd Hall"
 - If you truly cannot determine the location, respond with exactly: UNKNOWN
 
 Known locations:
