@@ -81,9 +81,10 @@ export function freefoodRoutes(freefoodDb: Database) {
       return row;
     });
 
-    // Manually trigger a scrape
-    app.post("/api/freefood/scrape", async () => {
-      const result = await scrapeFreefood(freefoodDb);
+    // Manually trigger a scrape (accepts ?limit= for backfill, max 5000)
+    app.post<{ Querystring: { limit?: string } }>("/api/freefood/scrape", async (request) => {
+      const limit = Math.min(Number(request.query.limit) || 500, 5000);
+      const result = await scrapeFreefood(freefoodDb, limit);
       return { ok: true, ...result };
     });
 
