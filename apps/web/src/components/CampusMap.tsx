@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Map as MapGL, type MapRef, Marker, NavigationControl, Popup } from "react-map-gl/mapbox";
-import type { EatingClub, FreefoodPost, POI } from "../types";
+import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "../types";
 import { getCategoryColor, getCategoryIcon } from "../utils/categories";
 
 const CAMPUS_MAP_TOKEN = import.meta.env.VITE_CAMPUS_MAP_TOKEN;
@@ -17,6 +17,9 @@ interface CampusMapProps {
   eatingClubs: EatingClub[];
   selectedClub: EatingClub | null;
   onSelectClub: (club: EatingClub | null) => void;
+  diningMenus: DiningHallMenu[];
+  selectedDining: DiningHallMenu | null;
+  onSelectDining: (menu: DiningHallMenu | null) => void;
 }
 
 export function CampusMap({
@@ -29,6 +32,9 @@ export function CampusMap({
   eatingClubs,
   selectedClub,
   onSelectClub,
+  diningMenus,
+  selectedDining,
+  onSelectDining,
 }: CampusMapProps) {
   const mapRef = useRef<MapRef>(null);
 
@@ -56,9 +62,21 @@ export function CampusMap({
       onSelectClub(club);
       onSelectPOI(null);
       onSelectFreefood(null);
+      onSelectDining(null);
       mapRef.current?.flyTo({ center: [club.lng, club.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood, onSelectClub],
+    [onSelectPOI, onSelectFreefood, onSelectClub, onSelectDining],
+  );
+
+  const handleDiningClick = useCallback(
+    (menu: DiningHallMenu) => {
+      onSelectDining(menu);
+      onSelectPOI(null);
+      onSelectFreefood(null);
+      onSelectClub(null);
+      mapRef.current?.flyTo({ center: [menu.hall.lng, menu.hall.lat], zoom: 17, duration: 500 });
+    },
+    [onSelectPOI, onSelectFreefood, onSelectClub, onSelectDining],
   );
 
   // Fetch Princeton's style, inject TigerApps tileset sources + custom layers
@@ -195,7 +213,7 @@ export function CampusMap({
       mapStyle={mapStyle}
       style={{ width: "100%", height: "100%" }}
       reuseMaps
-      onClick={() => { onSelectPOI(null); onSelectFreefood(null); onSelectClub(null); }}
+      onClick={() => { onSelectPOI(null); onSelectFreefood(null); onSelectClub(null); onSelectDining(null); }}
     >
       <NavigationControl position="top-right" showCompass />
 
@@ -319,6 +337,29 @@ export function CampusMap({
           </div>
         </Popup>
       )}
+
+      {/* Dining hall markers */}
+      {diningMenus.map((menu) => (
+        <Marker
+          key={`dining-${menu.hall.id}`}
+          longitude={menu.hall.lng}
+          latitude={menu.hall.lat}
+          anchor="center"
+          onClick={(e) => {
+            e.originalEvent.stopPropagation();
+            handleDiningClick(menu);
+          }}
+        >
+          <div
+            className={`dining-marker ${selectedDining?.hall.id === menu.hall.id ? "dining-marker-selected" : ""}`}
+            title={menu.hall.name}
+          >
+            <span className="text-sm leading-none">
+              {menu.hall.category === "retail" ? "☕" : "🍽"}
+            </span>
+          </div>
+        </Marker>
+      ))}
 
       {selectedPOI && (
         <Popup

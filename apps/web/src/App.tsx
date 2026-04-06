@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CampusMap } from "./components/CampusMap";
 import { CategorySidebar } from "./components/CategorySidebar";
+import { DiningDetail } from "./components/DiningDetail";
 import { EatingClubDetail } from "./components/EatingClubDetail";
 import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
-import type { EatingClub, FreefoodPost, POI } from "./types";
+import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "./types";
 
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
@@ -17,6 +18,9 @@ export function App() {
   const [selectedFreefood, setSelectedFreefood] = useState<FreefoodPost | null>(null);
   const [eatingClubs, setEatingClubs] = useState<EatingClub[]>([]);
   const [selectedClub, setSelectedClub] = useState<EatingClub | null>(null);
+  const [diningMenus, setDiningMenus] = useState<DiningHallMenu[]>([]);
+  const [diningCurrentMeal, setDiningCurrentMeal] = useState("Lunch");
+  const [selectedDining, setSelectedDining] = useState<DiningHallMenu | null>(null);
 
   useEffect(() => {
     fetch("/data/pois.json")
@@ -29,6 +33,17 @@ export function App() {
     fetch("/api/eating-clubs")
       .then((r) => r.json())
       .then((data) => setEatingClubs(data.clubs ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Fetch dining menus on mount
+  useEffect(() => {
+    fetch("/api/dining/today")
+      .then((r) => r.json())
+      .then((data) => {
+        setDiningMenus(data.menus ?? []);
+        setDiningCurrentMeal(data.currentMeal ?? "Lunch");
+      })
       .catch(() => {});
   }, []);
 
@@ -102,6 +117,9 @@ export function App() {
         eatingClubs={eatingClubs}
         selectedClub={selectedClub}
         onSelectClub={setSelectedClub}
+        diningMenus={diningMenus}
+        selectedDining={selectedDining}
+        onSelectDining={setSelectedDining}
       />
 
       {/* Header */}
@@ -140,6 +158,13 @@ export function App() {
       )}
       {selectedClub && (
         <EatingClubDetail club={selectedClub} onClose={() => setSelectedClub(null)} />
+      )}
+      {selectedDining && (
+        <DiningDetail
+          menu={selectedDining}
+          currentMeal={diningCurrentMeal}
+          onClose={() => setSelectedDining(null)}
+        />
       )}
     </div>
   );
