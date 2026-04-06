@@ -35,6 +35,25 @@ export interface EatingClub {
   recentEvents: EatingClubEvent[];
 }
 
+export interface DiningMealMenu {
+  meal: string;
+  stations: Record<string, string[]>;
+}
+
+export interface DiningHall {
+  id: string;
+  name: string;
+  category: "residential" | "retail";
+  lat: number;
+  lng: number;
+}
+
+export interface DiningHallMenu {
+  hall: DiningHall;
+  date: string;
+  meals: DiningMealMenu[];
+}
+
 export interface FreefoodPost {
   id: number;
   message_id: string;

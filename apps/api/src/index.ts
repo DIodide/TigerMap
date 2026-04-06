@@ -4,6 +4,7 @@ import { Database } from "bun:sqlite";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { diningRoutes } from "./dining/routes.js";
 import { registerEatingClubRoutes } from "./eatingclubs/routes.js";
 import { initEatingClubDb, startEatingClubScraper } from "./eatingclubs/scraper.js";
 import { freefoodRoutes } from "./freefood/routes.js";
@@ -74,6 +75,9 @@ await app.register(freefoodRoutes(freefoodDb));
 
 // Register eating club routes
 registerEatingClubRoutes(app, eatingClubDb);
+
+// Register dining menu routes
+await app.register(diningRoutes);
 
 // Start server
 const PORT = Number(process.env.PORT) || 3001;
