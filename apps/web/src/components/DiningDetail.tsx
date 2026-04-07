@@ -8,7 +8,6 @@ interface DiningDetailProps {
 }
 
 export function DiningDetail({ menu, currentMeal, onClose }: DiningDetailProps) {
-  // Show current meal first, then others
   const sortedMeals = [...menu.meals].sort((a, b) => {
     if (a.meal === currentMeal) return -1;
     if (b.meal === currentMeal) return 1;
@@ -18,15 +17,13 @@ export function DiningDetail({ menu, currentMeal, onClose }: DiningDetailProps) 
   const isRetail = menu.hall.category === "retail";
 
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[380px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+    <div className="detail-panel">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white shrink-0">
         <span className="text-lg">🍽</span>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-bold tracking-wide block truncate">{menu.hall.name}</span>
-          <span className="text-xs text-white/80">
-            {isRetail ? "Retail" : currentMeal}
-          </span>
+          <span className="text-xs text-white/80">{isRetail ? "Retail" : currentMeal}</span>
         </div>
         <button
           type="button"
@@ -45,7 +42,6 @@ export function DiningDetail({ menu, currentMeal, onClose }: DiningDetailProps) 
 
         {sortedMeals.map((meal) => (
           <div key={meal.meal}>
-            {/* Meal header (skip for retail with single unnamed meal) */}
             {!(isRetail && sortedMeals.length === 1) && (
               <div
                 className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider border-b ${
@@ -61,7 +57,6 @@ export function DiningDetail({ menu, currentMeal, onClose }: DiningDetailProps) 
               </div>
             )}
 
-            {/* Stations */}
             <div className="px-4 py-2 space-y-2.5">
               {Object.entries(meal.stations).map(([station, items]) => (
                 <div key={station}>

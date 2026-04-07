@@ -27,7 +27,7 @@ export function FreefoodDetail({ post, onClose }: FreefoodDetailProps) {
   })();
 
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[380px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+    <div className="detail-panel">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white shrink-0">
         <span className="text-lg">🍕</span>
@@ -53,14 +53,12 @@ export function FreefoodDetail({ post, onClose }: FreefoodDetailProps) {
           <span>{timeAgo(post.date)}</span>
         </div>
 
-        {/* Body */}
         {post.body_text && (
           <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
             {post.body_text.split("-----")[0].trim()}
           </p>
         )}
 
-        {/* Images (proxied through our API to avoid expired LISTSERV auth) */}
         {images.length > 0 && (
           <div className="mt-3 flex flex-col gap-2">
             {images.map((_, i) => (
@@ -75,7 +73,6 @@ export function FreefoodDetail({ post, onClose }: FreefoodDetailProps) {
           </div>
         )}
 
-        {/* Footer */}
         <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
           <p className="text-xs text-gray-500">
             <span className="font-medium text-gray-600">From:</span> {post.author_name}
