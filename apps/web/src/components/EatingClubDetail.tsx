@@ -37,7 +37,7 @@ export function EatingClubDetail({ club, onClose }: EatingClubDetailProps) {
   }, [club.name]);
 
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[380px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+    <div className="detail-panel">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-700 to-amber-600 text-white shrink-0">
         {selectedEvent ? (

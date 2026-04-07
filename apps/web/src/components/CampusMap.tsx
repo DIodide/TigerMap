@@ -338,28 +338,32 @@ export function CampusMap({
         </Popup>
       )}
 
-      {/* Dining hall markers */}
-      {diningMenus.map((menu) => (
-        <Marker
-          key={`dining-${menu.hall.id}`}
-          longitude={menu.hall.lng}
-          latitude={menu.hall.lat}
-          anchor="center"
-          onClick={(e) => {
-            e.originalEvent.stopPropagation();
-            handleDiningClick(menu);
-          }}
-        >
-          <div
-            className={`dining-marker ${selectedDining?.hall.id === menu.hall.id ? "dining-marker-selected" : ""}`}
-            title={menu.hall.name}
+      {/* Dining hall markers — residential (large) and retail (small) */}
+      {diningMenus.map((menu) => {
+        const isResidential = menu.hall.category === "residential";
+        const isSelected = selectedDining?.hall.id === menu.hall.id;
+        return (
+          <Marker
+            key={`dining-${menu.hall.id}`}
+            longitude={menu.hall.lng}
+            latitude={menu.hall.lat}
+            anchor={isResidential ? "bottom" : "center"}
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              handleDiningClick(menu);
+            }}
           >
-            <span className="text-sm leading-none">
-              {menu.hall.category === "retail" ? "☕" : "🍽"}
-            </span>
-          </div>
-        </Marker>
-      ))}
+            <div
+              className={`${isResidential ? "dining-marker-residential" : "dining-marker-retail"} ${isSelected ? "dining-marker-selected" : ""}`}
+              title={menu.hall.name}
+            >
+              <span className={isResidential ? "text-base leading-none" : "text-xs leading-none"}>
+                {isResidential ? "🍽" : "☕"}
+              </span>
+            </div>
+          </Marker>
+        );
+      })}
 
       {selectedPOI && (
         <Popup

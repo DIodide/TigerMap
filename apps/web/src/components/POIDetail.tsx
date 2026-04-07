@@ -11,7 +11,7 @@ export function POIDetail({ poi, onClose }: POIDetailProps) {
   const color = getCategoryColor(poi.cat);
 
   return (
-    <div className="absolute bottom-4 left-4 z-20 w-[360px] max-h-[60vh] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+    <div className="detail-panel">
       {poi.img && (
         <div className="relative h-40 shrink-0">
           <img src={poi.img} alt={poi.name} className="w-full h-full object-cover" />

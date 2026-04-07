@@ -8,19 +8,39 @@ import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "./types";
 
+type DetailPanel =
+  | { kind: "poi"; data: POI }
+  | { kind: "freefood"; data: FreefoodPost }
+  | { kind: "club"; data: EatingClub }
+  | { kind: "dining"; data: DiningHallMenu }
+  | null;
+
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(["Restaurant"]));
-  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [freefoodPosts, setFreefoodPosts] = useState<FreefoodPost[]>([]);
-  const [selectedFreefood, setSelectedFreefood] = useState<FreefoodPost | null>(null);
   const [eatingClubs, setEatingClubs] = useState<EatingClub[]>([]);
-  const [selectedClub, setSelectedClub] = useState<EatingClub | null>(null);
   const [diningMenus, setDiningMenus] = useState<DiningHallMenu[]>([]);
   const [diningCurrentMeal, setDiningCurrentMeal] = useState("Lunch");
-  const [selectedDining, setSelectedDining] = useState<DiningHallMenu | null>(null);
+
+  // Single active detail panel — only one can be open at a time
+  const [detail, setDetail] = useState<DetailPanel>(null);
+
+  const selectPOI = useCallback((poi: POI | null) => {
+    setDetail(poi ? { kind: "poi", data: poi } : null);
+  }, []);
+  const selectFreefood = useCallback((post: FreefoodPost | null) => {
+    setDetail(post ? { kind: "freefood", data: post } : null);
+  }, []);
+  const selectClub = useCallback((club: EatingClub | null) => {
+    setDetail(club ? { kind: "club", data: club } : null);
+  }, []);
+  const selectDining = useCallback((menu: DiningHallMenu | null) => {
+    setDetail(menu ? { kind: "dining", data: menu } : null);
+  }, []);
+  const closeDetail = useCallback(() => setDetail(null), []);
 
   useEffect(() => {
     fetch("/data/pois.json")
@@ -28,7 +48,6 @@ export function App() {
       .then((data: POI[]) => setPois(data));
   }, []);
 
-  // Fetch eating clubs on mount
   useEffect(() => {
     fetch("/api/eating-clubs")
       .then((r) => r.json())
@@ -36,7 +55,6 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  // Fetch dining menus on mount
   useEffect(() => {
     fetch("/api/dining/today")
       .then((r) => r.json())
@@ -47,7 +65,6 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  // Fetch free food feed on mount + every 2 minutes
   useEffect(() => {
     const load = () =>
       fetch("/api/freefood/feed?hours=9")
@@ -71,17 +88,11 @@ export function App() {
   }, [pois]);
 
   const filteredPOIs = useMemo(() => {
-    // No pins visible by default — user must search or select a category
-    if (activeCategories.size === 0 && !searchQuery.trim()) {
-      return [];
-    }
-
+    if (activeCategories.size === 0 && !searchQuery.trim()) return [];
     let result = pois;
-
     if (activeCategories.size > 0) {
       result = result.filter((p) => activeCategories.has(p.cat || "Other"));
     }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -92,7 +103,6 @@ export function App() {
           p.cat?.toLowerCase().includes(q),
       );
     }
-
     return result;
   }, [pois, activeCategories, searchQuery]);
 
@@ -109,17 +119,17 @@ export function App() {
     <div className="relative h-full w-full overflow-hidden">
       <CampusMap
         pois={filteredPOIs}
-        selectedPOI={selectedPOI}
-        onSelectPOI={setSelectedPOI}
+        selectedPOI={detail?.kind === "poi" ? detail.data : null}
+        onSelectPOI={selectPOI}
         freefoodPosts={freefoodPosts}
-        selectedFreefood={selectedFreefood}
-        onSelectFreefood={setSelectedFreefood}
+        selectedFreefood={detail?.kind === "freefood" ? detail.data : null}
+        onSelectFreefood={selectFreefood}
         eatingClubs={eatingClubs}
-        selectedClub={selectedClub}
-        onSelectClub={setSelectedClub}
+        selectedClub={detail?.kind === "club" ? detail.data : null}
+        onSelectClub={selectClub}
         diningMenus={diningMenus}
-        selectedDining={selectedDining}
-        onSelectDining={setSelectedDining}
+        selectedDining={detail?.kind === "dining" ? detail.data : null}
+        onSelectDining={selectDining}
       />
 
       {/* Header */}
@@ -152,18 +162,19 @@ export function App() {
         />
       )}
 
-      {selectedPOI && <POIDetail poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
-      {selectedFreefood && (
-        <FreefoodDetail post={selectedFreefood} onClose={() => setSelectedFreefood(null)} />
+      {/* Single detail panel — only one renders at a time */}
+      {detail?.kind === "poi" && <POIDetail poi={detail.data} onClose={closeDetail} />}
+      {detail?.kind === "freefood" && (
+        <FreefoodDetail post={detail.data} onClose={closeDetail} />
       )}
-      {selectedClub && (
-        <EatingClubDetail club={selectedClub} onClose={() => setSelectedClub(null)} />
+      {detail?.kind === "club" && (
+        <EatingClubDetail club={detail.data} onClose={closeDetail} />
       )}
-      {selectedDining && (
+      {detail?.kind === "dining" && (
         <DiningDetail
-          menu={selectedDining}
+          menu={detail.data}
           currentMeal={diningCurrentMeal}
-          onClose={() => setSelectedDining(null)}
+          onClose={closeDetail}
         />
       )}
     </div>
