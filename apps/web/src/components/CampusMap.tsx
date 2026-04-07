@@ -38,45 +38,38 @@ export function CampusMap({
 }: CampusMapProps) {
   const mapRef = useRef<MapRef>(null);
 
+  // Each handler only calls its own setter — App's single `detail` state
+  // handles mutual exclusion, so clearing others would overwrite with null.
   const handleMarkerClick = useCallback(
     (poi: POI) => {
       onSelectPOI(poi);
-      onSelectFreefood(null);
       mapRef.current?.flyTo({ center: [poi.lng, poi.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood],
+    [onSelectPOI],
   );
 
   const handleFoodClick = useCallback(
     (post: FreefoodPost) => {
       onSelectFreefood(post);
-      onSelectPOI(null);
-      onSelectClub(null);
       mapRef.current?.flyTo({ center: [post.lng, post.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood, onSelectClub],
+    [onSelectFreefood],
   );
 
   const handleClubClick = useCallback(
     (club: EatingClub) => {
       onSelectClub(club);
-      onSelectPOI(null);
-      onSelectFreefood(null);
-      onSelectDining(null);
       mapRef.current?.flyTo({ center: [club.lng, club.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood, onSelectClub, onSelectDining],
+    [onSelectClub],
   );
 
   const handleDiningClick = useCallback(
     (menu: DiningHallMenu) => {
       onSelectDining(menu);
-      onSelectPOI(null);
-      onSelectFreefood(null);
-      onSelectClub(null);
       mapRef.current?.flyTo({ center: [menu.hall.lng, menu.hall.lat], zoom: 17, duration: 500 });
     },
-    [onSelectPOI, onSelectFreefood, onSelectClub, onSelectDining],
+    [onSelectDining],
   );
 
   // Fetch Princeton's style, inject TigerApps tileset sources + custom layers
@@ -213,7 +206,7 @@ export function CampusMap({
       mapStyle={mapStyle}
       style={{ width: "100%", height: "100%" }}
       reuseMaps
-      onClick={() => { onSelectPOI(null); onSelectFreefood(null); onSelectClub(null); onSelectDining(null); }}
+      onClick={() => onSelectPOI(null)}
     >
       <NavigationControl position="top-right" showCompass />
 
