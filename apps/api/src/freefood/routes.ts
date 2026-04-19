@@ -4,6 +4,7 @@
 
 import type { Database } from "bun:sqlite";
 import type { FastifyInstance } from "fastify";
+import { matchLocations } from "./locations.js";
 import { fetchAuthenticatedImage, scrapeFreefood } from "./scraper.js";
 
 export function freefoodRoutes(freefoodDb: Database) {
@@ -86,6 +87,17 @@ export function freefoodRoutes(freefoodDb: Database) {
       const limit = Math.min(Number(request.query.limit) || 500, 5000);
       const result = await scrapeFreefood(freefoodDb, limit);
       return { ok: true, ...result };
+    });
+
+    // Reset UNKNOWN rows to NULL and re-run the LLM matcher against them.
+    // Lets us pick up newly-added buildings or prompt improvements without
+    // re-scraping the whole RSS feed.
+    app.post("/api/freefood/rematch", async () => {
+      const reset = freefoodDb
+        .prepare("UPDATE freefood_emails SET location_name = NULL WHERE location_name = 'UNKNOWN'")
+        .run();
+      const matched = await matchLocations(freefoodDb);
+      return { ok: true, reset: reset.changes, matched };
     });
 
     // Image proxy — fetches LISTSERV images with fresh auth
