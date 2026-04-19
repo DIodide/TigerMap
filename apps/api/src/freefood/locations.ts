@@ -178,6 +178,16 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
   { name: "New South", lat: 40.3419, lng: -74.6553 },
   { name: "LTL (Lewis Thomas Lab)", lat: 40.3454, lng: -74.6506 },
   { name: "McLain Pavilion", lat: 40.3452, lng: -74.6552 },
+
+  // ── Backfill round 2: recurring UNKNOWN hotspots ──
+  { name: "Hoyt Laboratory", lat: 40.3508, lng: -74.6507 },
+  { name: "Laura Wooten Hall", lat: 40.3520, lng: -74.6578 },
+  { name: "Cafe Vivian", lat: 40.3467, lng: -74.6551 },
+  { name: "Lockhart Hall", lat: 40.3482, lng: -74.6612 },
+  { name: "Roberts Stadium", lat: 40.3443, lng: -74.6603 },
+  { name: "Visualization Lab", lat: 40.3506, lng: -74.6510 },
+  { name: "Late Meal Area (Frist)", lat: 40.3467, lng: -74.6551 },
+  { name: "GSRC Conference Room", lat: 40.3412, lng: -74.6656 },
 ];
 
 /** Build the location list string for the LLM prompt. */
@@ -224,6 +234,19 @@ RULES:
 - "CAF" or "caf" followed by a room number = "Lakeside Dining (Commons)"
 - "New South" = "New South"
 - "Sherrerd" = "Sherrerd Hall"
+- "Hoyt" or "Hoyt Lab" or "Hoyt Laboratory" = "Hoyt Laboratory"
+- "BioE" or "SEAS-BioE" or "SEAS BioE" or "Biomedical Engineering" (1st/3rd floor context) = "Hoyt Laboratory"
+- "Wooten" or "Laura Wooten" or "Lauren Wooten" = "Laura Wooten Hall"
+- "Cafe Viv" or "Cafe Vivian" or "Vivi" or "Vivian" (food context) = "Cafe Vivian"
+- "Lockhart" = "Lockhart Hall"
+- "Roberts Stadium" or "Roberts Soccer Stadium" or "Myslik Field" = "Roberts Stadium"
+- "Visualization Lab" or "Viz Lab" = "Visualization Lab"
+- "Late meal" or "late meal area" or "late meal floor" = "Late Meal Area (Frist)"
+- "Genomics" or "Genomics building" or "Genomics Institute" = "Icahn Laboratory"
+- "CAF 106" or "CAF cafe" or "CAF small kitchen" = "Carl A. Fields Center"
+- "Robertson Bowl" or "Robertson Schultz" = "Robertson Hall"
+- "GSRC" or "gsrc" = "GSRC Conference Room"
+- "Dante" or "Dante room" = "Rockefeller College"
 - If you truly cannot determine the location, respond with exactly: UNKNOWN
 
 Known locations:
