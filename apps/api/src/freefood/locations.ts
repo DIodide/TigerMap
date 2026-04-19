@@ -111,7 +111,7 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
   { name: "Julis Romo Rabinowitz Building (JRR)", lat: 40.3488, lng: -74.6535 },
   { name: "Whig Hall", lat: 40.3483, lng: -74.6580 },
   { name: "Clio Hall", lat: 40.3487, lng: -74.6580 },
-  { name: "Icahn Laboratory", lat: 40.3451, lng: -74.6502 },
+  { name: "Icahn Laboratory", lat: 40.3448, lng: -74.6547 },
   { name: "McGraw Hall", lat: 40.3476, lng: -74.6563 },
   { name: "Louis A. Simpson International Building", lat: 40.3484, lng: -74.6550 },
   { name: "Bien Hall", lat: 40.3496, lng: -74.6506 },
@@ -185,6 +185,7 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
   { name: "Cafe Vivian", lat: 40.3467, lng: -74.6551 },
   { name: "Lockhart Hall", lat: 40.3482, lng: -74.6612 },
   { name: "Roberts Stadium", lat: 40.3443, lng: -74.6603 },
+  { name: "Princeton Stadium (Powers Field)", lat: 40.3467, lng: -74.6507 },
   { name: "Visualization Lab", lat: 40.3506, lng: -74.6510 },
   { name: "Late Meal Area (Frist)", lat: 40.3467, lng: -74.6551 },
   { name: "GSRC Conference Room", lat: 40.3412, lng: -74.6656 },
@@ -240,7 +241,9 @@ RULES:
 - "Cafe Viv" or "Cafe Vivian" or "Vivi" or "Vivian" (food context) = "Cafe Vivian"
 - "Lockhart" = "Lockhart Hall"
 - "Roberts Stadium" or "Roberts Soccer Stadium" or "Myslik Field" = "Roberts Stadium"
-- "Visualization Lab" or "Viz Lab" = "Visualization Lab"
+- "Football Stadium" or "Princeton Stadium" or "Powers Field" or "1956 Lounge" = "Princeton Stadium (Powers Field)"
+- "Visualization Lab" or "Viz Lab" (engineering/EQuad context) = "Visualization Lab"
+- "Vis building" or "Vis" (arts/gallery context) or "Hagan Gallery" or "185 Nassau" = "Lewis Arts Complex (LAS)"
 - "Late meal" or "late meal area" or "late meal floor" = "Late Meal Area (Frist)"
 - "Genomics" or "Genomics building" or "Genomics Institute" = "Icahn Laboratory"
 - "CAF 106" or "CAF cafe" or "CAF small kitchen" = "Carl A. Fields Center"
