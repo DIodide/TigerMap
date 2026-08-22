@@ -5,7 +5,7 @@ interface Env {
 }
 
 export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
-  const host = env.API_HOST || "ec2-54-147-149-212.compute-1.amazonaws.com";
+  const host = env.API_HOST || "ec2-3-91-107-148.compute-1.amazonaws.com";
   const origin = `http://${host}`;
 
   const url = new URL(request.url);
