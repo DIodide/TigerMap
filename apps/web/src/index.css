@@ -9,6 +9,24 @@ body,
   font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* Lock the page: the app is a fixed full-screen map — no document scrolling,
+   no iOS rubber-band bounce (which showed white past the page edges), and no
+   browser pinch-zoom of the UI. The Mapbox canvas manages its own gestures. */
+html {
+  background: #1c1c1e;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+}
+
 /* ── Shared detail panel ────────────────────────── */
 .detail-panel {
   position: absolute;
@@ -53,12 +71,49 @@ body,
 
 .directions-sheet {
   pointer-events: auto;
+  touch-action: none;
   width: 100%;
   background: #1c1c1e;
   border-radius: 1rem 1rem 0 0;
   padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
   animation: sheet-up 300ms cubic-bezier(0.32, 0.72, 0.3, 1);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+
+/* Turn-by-turn steps: collapsed on mobile until the sheet is expanded
+   (swipe up or tap the handle); always open on desktop. */
+.steps-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+.steps-wrap.steps-open {
+  grid-template-rows: 1fr;
+}
+.steps-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.steps-list {
+  max-height: 40dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+@media (min-width: 640px) {
+  .steps-wrap {
+    grid-template-rows: 1fr;
+  }
+  .steps-list {
+    max-height: 13rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .steps-wrap,
+  .directions-sheet {
+    transition: none;
+  }
 }
 
 @media (min-width: 640px) {

@@ -11,10 +11,16 @@ export interface LatLng {
   lng: number;
 }
 
+export interface RouteStep {
+  instruction: string;
+  distanceM: number;
+}
+
 export interface RouteInfo {
   geometry: { type: "LineString"; coordinates: [number, number][] };
   distanceM: number;
   durationS: number;
+  steps: RouteStep[];
 }
 
 async function fetchRoute(
@@ -25,14 +31,22 @@ async function fetchRoute(
   const url =
     `https://api.mapbox.com/directions/v5/mapbox/${profile}/` +
     `${origin.lng},${origin.lat};${dest.lng},${dest.lat}` +
-    `?geometries=geojson&overview=full&access_token=${TOKEN}`;
+    `?geometries=geojson&overview=full&steps=true&access_token=${TOKEN}`;
   try {
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const data = await resp.json();
     const route = data.code === "Ok" ? data.routes?.[0] : null;
     if (!route) return null;
-    return { geometry: route.geometry, distanceM: route.distance, durationS: route.duration };
+    const steps: RouteStep[] = (route.legs?.[0]?.steps ?? [])
+      .map((s: any) => ({ instruction: s.maneuver?.instruction ?? "", distanceM: s.distance ?? 0 }))
+      .filter((s: RouteStep) => s.instruction);
+    return {
+      geometry: route.geometry,
+      distanceM: route.distance,
+      durationS: route.duration,
+      steps,
+    };
   } catch {
     return null;
   }
