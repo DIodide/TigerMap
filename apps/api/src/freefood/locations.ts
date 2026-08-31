@@ -267,13 +267,17 @@ function resolveLocation(name: string): CampusLocation | null {
 
 /**
  * Call Gemini Flash Lite via OpenRouter to extract the location from an email.
- * Returns null if the location can't be determined or API is unavailable.
+ * `{ ok: false }` means the API call itself failed — the caller must leave the
+ * row unmatched so a later pass retries it. `location: null` means the model
+ * answered UNKNOWN.
  */
-async function callLLM(subject: string, bodyText: string): Promise<string | null> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
+type LLMResult = { ok: true; location: string | null } | { ok: false };
 
-  const model = process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001";
+async function callLLM(subject: string, bodyText: string): Promise<LLMResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return { ok: false };
+
+  const model = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite";
   const truncatedBody = bodyText.split("-----")[0].trim().slice(0, 400);
 
   try {
@@ -296,16 +300,16 @@ async function callLLM(subject: string, bodyText: string): Promise<string | null
 
     if (!resp.ok) {
       console.error(`[freefood] LLM API error: ${resp.status}`);
-      return null;
+      return { ok: false };
     }
 
     const data = (await resp.json()) as any;
     const answer = data.choices?.[0]?.message?.content?.trim();
-    if (!answer || answer === "UNKNOWN") return null;
-    return answer;
+    if (!answer) return { ok: false };
+    return { ok: true, location: answer === "UNKNOWN" ? null : answer };
   } catch (err: any) {
     console.error(`[freefood] LLM call failed: ${err.message}`);
-    return null;
+    return { ok: false };
   }
 }
 
@@ -341,11 +345,23 @@ export async function matchLocations(freefoodDb: Database): Promise<number> {
   );
 
   let matched = 0;
+  let consecutiveFailures = 0;
   for (const email of unmatched) {
-    const locationName = await callLLM(email.subject, email.body_text || "");
+    const result = await callLLM(email.subject, email.body_text || "");
 
-    if (locationName) {
-      const loc = resolveLocation(locationName);
+    if (!result.ok) {
+      // API failure — leave the row NULL so the next pass retries it, and stop
+      // hammering the API if it keeps failing (dead key, retired model, outage).
+      if (++consecutiveFailures >= 3) {
+        console.error("[freefood] LLM API failing repeatedly — aborting this matching pass");
+        break;
+      }
+      continue;
+    }
+    consecutiveFailures = 0;
+
+    if (result.location) {
+      const loc = resolveLocation(result.location);
       if (loc) {
         updateStmt.run(loc.name, loc.lat, loc.lng, email.id);
         matched++;
@@ -354,6 +370,7 @@ export async function matchLocations(freefoodDb: Database): Promise<number> {
         markUnknown.run(email.id);
       }
     } else {
+      // The model answered UNKNOWN — a real "no location in this email"
       markUnknown.run(email.id);
     }
 

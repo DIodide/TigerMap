@@ -86,7 +86,7 @@ export async function classifyEmail(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001";
+  const model = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite";
   const truncated = bodyText.split("-----")[0].trim().slice(0, 400);
 
   try {
