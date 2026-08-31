@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Map as MapGL, type MapRef, Marker, NavigationControl, Popup } from "react-map-gl/mapbox";
+import { GeolocateControl, Map as MapGL, type MapRef, Marker, NavigationControl, Popup } from "react-map-gl/mapbox";
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "../types";
 import { getCategoryColor, getCategoryIcon } from "../utils/categories";
 
@@ -209,6 +209,12 @@ export function CampusMap({
       onClick={() => onSelectPOI(null)}
     >
       <NavigationControl position="top-right" showCompass />
+      <GeolocateControl
+        position="top-right"
+        trackUserLocation
+        showUserHeading
+        positionOptions={{ enableHighAccuracy: true }}
+      />
 
       {pois.map((poi) => (
         <Marker
