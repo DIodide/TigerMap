@@ -72,7 +72,9 @@ export function EatingClubDetail({ club, onClose }: EatingClubDetailProps) {
         {selectedEvent ? (
           // ── Full event view ──
           <div>
-            <h2 className="text-base font-bold text-gray-900 leading-snug">{selectedEvent.subject}</h2>
+            <h2 className="text-base font-bold text-gray-900 leading-snug">
+              {selectedEvent.subject}
+            </h2>
             <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
               {selectedEvent.event_type && (
                 <span className="inline-flex items-center bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">

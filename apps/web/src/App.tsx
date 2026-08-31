@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CampusMap } from "./components/CampusMap";
 import { CategorySidebar } from "./components/CategorySidebar";
 import { DiningDetail } from "./components/DiningDetail";
+import { DirectionsSheet, type DirectionsState } from "./components/DirectionsSheet";
 import { EatingClubDetail } from "./components/EatingClubDetail";
 import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "./types";
+import { type TravelProfile, fetchRoutes } from "./utils/directions";
 
 type DetailPanel =
   | { kind: "poi"; data: POI }
@@ -14,6 +16,11 @@ type DetailPanel =
   | { kind: "club"; data: EatingClub }
   | { kind: "dining"; data: DiningHallMenu }
   | null;
+
+type Destination = DirectionsState["dest"];
+
+// Map furniture that shouldn't appear as search destinations
+const EXCLUDED_SEARCH_CATS = new Set(["Steps", "steps", "Ramp", "Entrance"]);
 
 export function App() {
   const [pois, setPois] = useState<POI[]>([]);
@@ -41,6 +48,88 @@ export function App() {
     setDetail(menu ? { kind: "dining", data: menu } : null);
   }, []);
   const closeDetail = useCallback(() => setDetail(null), []);
+
+  // ── Directions ────────────────────────────────────────────────
+  const [directions, setDirections] = useState<DirectionsState | null>(null);
+  const lastProfile = useRef<TravelProfile>("walking");
+
+  const startDirections = useCallback((dest: Destination) => {
+    setDetail(null);
+    setSidebarOpen(false);
+    setDirections({
+      dest,
+      origin: null,
+      routes: null,
+      profile: lastProfile.current,
+      status: "locating",
+    });
+
+    if (!navigator.geolocation) {
+      setDirections((d) => (d?.dest === dest ? { ...d, status: "no-location" } : d));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const origin = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setDirections((d) => (d?.dest === dest ? { ...d, origin, status: "routing" } : d));
+        fetchRoutes(origin, dest).then((routes) => {
+          setDirections((d) => {
+            if (d?.dest !== dest) return d;
+            if (!routes.walking && !routes.cycling) return { ...d, status: "error" };
+            const profile = routes[d.profile] ? d.profile : routes.walking ? "walking" : "cycling";
+            return { ...d, routes, profile, status: "ready" };
+          });
+        });
+      },
+      () => setDirections((d) => (d?.dest === dest ? { ...d, status: "no-location" } : d)),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  }, []);
+
+  const selectProfile = useCallback((profile: TravelProfile) => {
+    lastProfile.current = profile;
+    setDirections((d) => (d ? { ...d, profile } : d));
+  }, []);
+
+  const retryDirections = useCallback(() => {
+    if (directions) startDirections(directions.dest);
+  }, [directions, startDirections]);
+
+  const closeDirections = useCallback(() => {
+    setDirections(null);
+    setSearchQuery("");
+  }, []);
+
+  const pickSearchResult = useCallback(
+    (poi: POI) => {
+      setSearchQuery(poi.name);
+      startDirections({ name: poi.name, lat: poi.lat, lng: poi.lng, cat: poi.cat });
+    },
+    [startDirections],
+  );
+
+  const directionsFromPOI = useCallback(
+    (poi: POI) => startDirections({ name: poi.name, lat: poi.lat, lng: poi.lng, cat: poi.cat }),
+    [startDirections],
+  );
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const scored: { poi: POI; score: number }[] = [];
+    for (const poi of pois) {
+      if (!poi.name || EXCLUDED_SEARCH_CATS.has(poi.cat || "")) continue;
+      const name = poi.name.toLowerCase();
+      let score = -1;
+      if (name.startsWith(q)) score = 0;
+      else if (name.includes(q)) score = 1;
+      else if (poi.alt?.toLowerCase().includes(q)) score = 2;
+      else if (poi.cat?.toLowerCase().startsWith(q)) score = 3;
+      if (score >= 0) scored.push({ poi, score });
+    }
+    scored.sort((a, b) => a.score - b.score || a.poi.name.length - b.poi.name.length);
+    return scored.slice(0, 7).map((s) => s.poi);
+  }, [pois, searchQuery]);
 
   useEffect(() => {
     fetch("/data/pois.json")
@@ -130,6 +219,11 @@ export function App() {
         diningMenus={diningMenus}
         selectedDining={detail?.kind === "dining" ? detail.data : null}
         onSelectDining={selectDining}
+        route={
+          directions?.status === "ready" ? (directions.routes?.[directions.profile] ?? null) : null
+        }
+        routeOrigin={directions?.origin ?? null}
+        routeDest={directions?.dest ?? null}
       />
 
       {/* Header */}
@@ -140,8 +234,13 @@ export function App() {
       </div>
 
       {/* Search + categories */}
-      <div className="absolute top-12 left-4 z-10 flex flex-col gap-2 w-[320px]">
-        <SearchBar value={searchQuery} onChange={setSearchQuery} />
+      <div className="absolute top-12 left-4 z-10 flex flex-col gap-2 w-[320px] max-w-[calc(100vw-2rem)]">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          results={searchResults}
+          onPick={pickSearchResult}
+        />
         <div className="flex gap-2">
           <button
             type="button"
@@ -163,18 +262,21 @@ export function App() {
       )}
 
       {/* Single detail panel — only one renders at a time */}
-      {detail?.kind === "poi" && <POIDetail poi={detail.data} onClose={closeDetail} />}
-      {detail?.kind === "freefood" && (
-        <FreefoodDetail post={detail.data} onClose={closeDetail} />
+      {detail?.kind === "poi" && (
+        <POIDetail poi={detail.data} onClose={closeDetail} onDirections={directionsFromPOI} />
       )}
-      {detail?.kind === "club" && (
-        <EatingClubDetail club={detail.data} onClose={closeDetail} />
-      )}
+      {detail?.kind === "freefood" && <FreefoodDetail post={detail.data} onClose={closeDetail} />}
+      {detail?.kind === "club" && <EatingClubDetail club={detail.data} onClose={closeDetail} />}
       {detail?.kind === "dining" && (
-        <DiningDetail
-          menu={detail.data}
-          currentMeal={diningCurrentMeal}
-          onClose={closeDetail}
+        <DiningDetail menu={detail.data} currentMeal={diningCurrentMeal} onClose={closeDetail} />
+      )}
+
+      {directions && (
+        <DirectionsSheet
+          state={directions}
+          onSelectProfile={selectProfile}
+          onRetry={retryDirections}
+          onClose={closeDirections}
         />
       )}
     </div>

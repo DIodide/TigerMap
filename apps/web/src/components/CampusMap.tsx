@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GeolocateControl, Map as MapGL, type MapRef, Marker, NavigationControl, Popup } from "react-map-gl/mapbox";
+import {
+  GeolocateControl,
+  Layer,
+  Map as MapGL,
+  type MapRef,
+  Marker,
+  NavigationControl,
+  Popup,
+  Source,
+} from "react-map-gl/mapbox";
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "../types";
 import { getCategoryColor, getCategoryIcon } from "../utils/categories";
+import type { LatLng, RouteInfo } from "../utils/directions";
 
 const CAMPUS_MAP_TOKEN = import.meta.env.VITE_CAMPUS_MAP_TOKEN;
 const CAMPUS_MAP_STYLE = import.meta.env.VITE_CAMPUS_MAP_STYLE;
@@ -20,6 +30,9 @@ interface CampusMapProps {
   diningMenus: DiningHallMenu[];
   selectedDining: DiningHallMenu | null;
   onSelectDining: (menu: DiningHallMenu | null) => void;
+  route: RouteInfo | null;
+  routeOrigin: LatLng | null;
+  routeDest: { name: string; lat: number; lng: number } | null;
 }
 
 export function CampusMap({
@@ -35,8 +48,48 @@ export function CampusMap({
   diningMenus,
   selectedDining,
   onSelectDining,
+  route,
+  routeOrigin,
+  routeDest,
 }: CampusMapProps) {
   const mapRef = useRef<MapRef>(null);
+
+  // Frame the route (or fly to the destination while routes are loading)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !routeDest) return;
+    if (route) {
+      const coords: [number, number][] = [...route.geometry.coordinates];
+      if (routeOrigin) coords.push([routeOrigin.lng, routeOrigin.lat]);
+      coords.push([routeDest.lng, routeDest.lat]);
+      let minLng = Number.POSITIVE_INFINITY;
+      let minLat = Number.POSITIVE_INFINITY;
+      let maxLng = Number.NEGATIVE_INFINITY;
+      let maxLat = Number.NEGATIVE_INFINITY;
+      for (const [lng, lat] of coords) {
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+      }
+      const mobile = window.innerWidth < 640;
+      map.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        {
+          padding: mobile
+            ? { top: 130, bottom: 250, left: 45, right: 70 }
+            : { top: 120, bottom: 240, left: 90, right: 100 },
+          duration: 700,
+          maxZoom: 17.5,
+        },
+      );
+    } else {
+      map.flyTo({ center: [routeDest.lng, routeDest.lat], zoom: 16.5, duration: 500 });
+    }
+  }, [route, routeOrigin, routeDest]);
 
   // Each handler only calls its own setter — App's single `detail` state
   // handles mutual exclusion, so clearing others would overwrite with null.
@@ -192,7 +245,9 @@ export function CampusMap({
       transformRequest={(url: string) => {
         // Route TigerApps tileset requests through the TigerApps token
         if (url.includes("tigerapps.") && TIGERAPPS_TOKEN) {
-          return { url: url.replace(/access_token=[^&]+/, `access_token=${TIGERAPPS_TOKEN}`) } as any;
+          return {
+            url: url.replace(/access_token=[^&]+/, `access_token=${TIGERAPPS_TOKEN}`),
+          } as any;
         }
         return { url } as any;
       }}
@@ -215,6 +270,34 @@ export function CampusMap({
         showUserHeading
         positionOptions={{ enableHighAccuracy: true }}
       />
+
+      {/* Active route (orange over a white casing for contrast) */}
+      {route && (
+        <Source
+          id="route"
+          type="geojson"
+          data={{ type: "Feature", properties: {}, geometry: route.geometry }}
+        >
+          <Layer
+            id="route-casing"
+            type="line"
+            layout={{ "line-cap": "round", "line-join": "round" }}
+            paint={{ "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.85 }}
+          />
+          <Layer
+            id="route-line"
+            type="line"
+            layout={{ "line-cap": "round", "line-join": "round" }}
+            paint={{ "line-color": "#e77500", "line-width": 5.5 }}
+          />
+        </Source>
+      )}
+      {routeOrigin && (
+        <Marker longitude={routeOrigin.lng} latitude={routeOrigin.lat} anchor="center">
+          <div className="route-origin-dot" />
+        </Marker>
+      )}
+      {routeDest && <Marker longitude={routeDest.lng} latitude={routeDest.lat} color="#e77500" />}
 
       {pois.map((poi) => (
         <Marker
@@ -286,9 +369,7 @@ export function CampusMap({
               alt={club.name}
               className="w-5 h-5 rounded-full object-contain"
             />
-            {club.eventCount > 0 && (
-              <span className="eating-club-badge">{club.eventCount}</span>
-            )}
+            {club.eventCount > 0 && <span className="eating-club-badge">{club.eventCount}</span>}
           </div>
         </Marker>
       ))}
@@ -318,11 +399,15 @@ export function CampusMap({
             </div>
             {selectedClub.recentEvents.length > 0 ? (
               <div>
-                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Recent Events</h4>
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+                  Recent Events
+                </h4>
                 <div className="space-y-2">
                   {selectedClub.recentEvents.map((event) => (
                     <div key={event.id} className="border-l-2 border-orange-300 pl-2">
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{event.subject}</p>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                        {event.subject}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {new Date(event.date).toLocaleDateString()} · {event.type || "Event"}
                       </p>
