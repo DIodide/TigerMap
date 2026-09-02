@@ -25,6 +25,19 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function parseImages(event: FullEvent): string[] {
+  try {
+    return JSON.parse(event.images || "[]");
+  } catch {
+    return [];
+  }
+}
+
+/** LISTSERV-hosted attachments need the API's login; other hosts load directly. */
+function imageSrc(event: FullEvent, url: string, index: number): string {
+  return url.includes("lists.princeton.edu") ? `/api/eating-clubs/image/${event.id}/${index}` : url;
+}
+
 export function EatingClubDetail({ club, onClose }: EatingClubDetailProps) {
   const [events, setEvents] = useState<FullEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<FullEvent | null>(null);
@@ -85,9 +98,23 @@ export function EatingClubDetail({ club, onClose }: EatingClubDetailProps) {
             </div>
 
             {selectedEvent.body_text && (
-              <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                {selectedEvent.body_text.split("-----")[0].trim()}
+              <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">
+                {selectedEvent.body_text}
               </p>
+            )}
+
+            {parseImages(selectedEvent).length > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                {parseImages(selectedEvent).map((url, i) => (
+                  <img
+                    key={url}
+                    src={imageSrc(selectedEvent, url, i)}
+                    alt=""
+                    className="w-full h-auto rounded-lg"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
             )}
 
             <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">

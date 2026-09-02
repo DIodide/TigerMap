@@ -10,9 +10,15 @@
  */
 
 import { Database } from "bun:sqlite";
-import { XMLParser } from "fast-xml-parser";
 import path from "node:path";
-import { type ClassificationResult, EATING_CLUBS, classifyEmail, mightBeEatingClubEvent, resolveClub } from "./classifier.js";
+import { XMLParser } from "fast-xml-parser";
+import {
+  type ClassificationResult,
+  EATING_CLUBS,
+  classifyEmail,
+  mightBeEatingClubEvent,
+  resolveClub,
+} from "./classifier.js";
 
 const BASE_URL = "https://lists.princeton.edu/cgi-bin/wa";
 
@@ -24,11 +30,33 @@ let authParams = "";
 
 function stripHtml(html: string): string {
   let text = html
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
-  text = text.replace(/<br\s*\/?>/gi, "\n").replace(/<p[^>]*>/gi, "\n").replace(/<\/p>/gi, "");
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+  text = text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<p[^>]*>/gi, "\n")
+    .replace(/<\/p>/gi, "");
+  text = text.replace(/<li[^>]*>/gi, "\n• ");
   text = text.replace(/<[^>]+>/g, "").replace(/\n{3,}/g, "\n\n");
   return text.trim();
+}
+
+/** Unique http(s) image URLs referenced by an HTML body. */
+function extractImages(html: string): string[] {
+  const seen = new Set<string>();
+  const images: string[] = [];
+  for (const match of html.matchAll(/<img[^>]+src="(https?:\/\/[^"]+)"/gi)) {
+    const clean = match[1].replace(/#https?:\/\/.*$/, "");
+    if (!seen.has(clean)) {
+      seen.add(clean);
+      images.push(clean);
+    }
+  }
+  return images;
 }
 
 // ── auth ─────────────────────────────────────────────────────────────
@@ -54,6 +82,56 @@ async function login(): Promise<void> {
 
   cookie = `WALOGIN=${cookieMatch[1]}`;
   authParams = `X=${xMatch[1]}&Y=${encodeURIComponent(email)}`;
+}
+
+function withAuth(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}${authParams}`;
+}
+
+async function fetchText(url: string): Promise<string> {
+  const resp = await fetch(url, { headers: { Cookie: cookie, "User-Agent": "TigerMap/1.0" } });
+  return await resp.text();
+}
+
+/**
+ * Fetch a message's complete body from its LISTSERV page. The RSS feed
+ * truncates bodies (they end in "[...]"), so we follow the page's text/html
+ * attachment link for the full email and collect its images plus any image
+ * attachments. Ported from TheForum's fetch_full_message().
+ * Returns null when the page has no body attachment to fetch.
+ */
+async function fetchFullMessage(
+  messageUrl: string,
+): Promise<{ bodyHtml: string; images: string[] } | null> {
+  if (!cookie || !authParams) await login();
+  let page = await fetchText(withAuth(messageUrl));
+  if (page.includes("Login Required")) {
+    await login();
+    page = await fetchText(withAuth(messageUrl));
+    if (page.includes("Login Required")) throw new Error("LISTSERV login required");
+  }
+
+  const attachments = [...page.matchAll(/href="(\/cgi-bin\/wa\?A3=[^"]+)"[^>]*>([^<]+)<\/a>/g)].map(
+    ([, link, label]) => ({
+      url: `https://lists.princeton.edu${link.replace("&header=1", "")}`,
+      label: label.trim().toLowerCase(),
+    }),
+  );
+  const body =
+    attachments.find((a) => a.label.includes("text/html")) ??
+    attachments.find((a) => a.label.includes("text/plain"));
+  if (!body) return null;
+
+  const bodyHtml = await fetchText(withAuth(body.url));
+  if (bodyHtml.includes("Login Required")) throw new Error("LISTSERV login required");
+
+  const images = extractImages(bodyHtml);
+  for (const att of attachments) {
+    const isImage =
+      att.label.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|heic|tiff?)$/i.test(att.label);
+    if (isImage && !images.includes(att.url)) images.push(att.url);
+  }
+  return { bodyHtml, images };
 }
 
 // ── database ─────────────────────────────────────────────────────────
@@ -86,6 +164,17 @@ export function initEatingClubDb(dataDir: string): Database {
   db.run("CREATE INDEX IF NOT EXISTS idx_ec_date ON eating_club_events(date DESC)");
   db.run("CREATE INDEX IF NOT EXISTS idx_ec_club ON eating_club_events(club_name)");
 
+  // Migration: track whether the full body has been fetched from LISTSERV.
+  // Rows imported from TheForum's export already carry full bodies + images.
+  const cols = db.prepare("PRAGMA table_info(eating_club_events)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === "body_complete")) {
+    db.run("ALTER TABLE eating_club_events ADD COLUMN body_complete INTEGER DEFAULT 0");
+    db.run(
+      `UPDATE eating_club_events SET body_complete = 1
+       WHERE body_text NOT LIKE '%[...]' AND images != '[]'`,
+    );
+  }
+
   return db;
 }
 
@@ -110,7 +199,12 @@ async function fetchWhitmanwireRss(limit = 200): Promise<RawEmail[]> {
   });
   const data = await resp.text();
 
-  const parser = new XMLParser({ ignoreAttributes: false, textNodeName: "_text", processEntities: false, htmlEntities: true });
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    textNodeName: "_text",
+    processEntities: false,
+    htmlEntities: true,
+  });
   const parsed = parser.parse(data);
 
   let items = parsed?.rss?.channel?.item || parsed?.["rdf:RDF"]?.item || [];
@@ -118,7 +212,8 @@ async function fetchWhitmanwireRss(limit = 200): Promise<RawEmail[]> {
 
   return items.map((item: any) => {
     const authorRaw = item.author || "";
-    const authorMatch = authorRaw.match(/(.+?)\s*<(.+?)>/) || authorRaw.match(/(.+?)\s*&lt;(.+?)&gt;/);
+    const authorMatch =
+      authorRaw.match(/(.+?)\s*<(.+?)>/) || authorRaw.match(/(.+?)\s*&lt;(.+?)&gt;/);
     const link = item.link || "";
     const msgIdMatch = link.match?.(/A2=([^&]+)/);
     const description = item.description || "";
@@ -128,7 +223,14 @@ async function fetchWhitmanwireRss(limit = 200): Promise<RawEmail[]> {
       subject: item.title || "",
       author_name: authorMatch ? authorMatch[1].trim() : authorRaw,
       author_email: authorMatch ? authorMatch[2].trim() : "",
-      date: (() => { try { const d = new Date(item.pubDate || ""); return Number.isNaN(d.getTime()) ? item.pubDate : d.toISOString(); } catch { return item.pubDate || ""; } })(),
+      date: (() => {
+        try {
+          const d = new Date(item.pubDate || "");
+          return Number.isNaN(d.getTime()) ? item.pubDate : d.toISOString();
+        } catch {
+          return item.pubDate || "";
+        }
+      })(),
       body_html: description,
       body_text: stripHtml(description),
       images: [],
@@ -157,7 +259,9 @@ async function classifyAndStore(
   let stored = 0;
   for (const email of candidates) {
     // Skip if already in DB
-    const exists = db.prepare("SELECT 1 FROM eating_club_events WHERE message_id = ?").get(email.message_id);
+    const exists = db
+      .prepare("SELECT 1 FROM eating_club_events WHERE message_id = ?")
+      .get(email.message_id);
     if (exists) continue;
 
     const result = await classifyEmail(email.subject, email.body_text);
@@ -170,9 +274,19 @@ async function classifyAndStore(
     if (!club) continue;
 
     stmt.run(
-      email.message_id, email.subject, email.author_name, email.author_email,
-      email.date, email.body_html, email.body_text, JSON.stringify(email.images),
-      email.listserv_url, club.name, club.lat, club.lng, result.eventType,
+      email.message_id,
+      email.subject,
+      email.author_name,
+      email.author_email,
+      email.date,
+      email.body_html,
+      email.body_text,
+      JSON.stringify(email.images),
+      email.listserv_url,
+      club.name,
+      club.lat,
+      club.lng,
+      result.eventType,
     );
     stored++;
     await new Promise((r) => setTimeout(r, 80));
@@ -200,7 +314,9 @@ export async function importFromJson(
   const cutoffIso = cutoff.toISOString();
 
   const recent = messages.filter((m: any) => m.date >= cutoffIso);
-  console.log(`[eatingclubs] ${recent.length} emails in last ${monthsBack} months (of ${messages.length} total)`);
+  console.log(
+    `[eatingclubs] ${recent.length} emails in last ${monthsBack} months (of ${messages.length} total)`,
+  );
 
   const emails: RawEmail[] = recent.map((m: any) => ({
     message_id: m.message_id || "",
@@ -215,9 +331,60 @@ export async function importFromJson(
   }));
 
   const { processed, stored } = await classifyAndStore(db, emails);
-  console.log(`[eatingclubs] Import done: ${processed} candidates → ${stored} eating club events stored`);
+  console.log(
+    `[eatingclubs] Import done: ${processed} candidates → ${stored} eating club events stored`,
+  );
 
   return { total: recent.length, candidates: processed, stored };
+}
+
+// ── full-body enrichment ─────────────────────────────────────────────
+
+/**
+ * Replace RSS-truncated bodies with the complete email from LISTSERV and
+ * pick up images. Runs after every scrape; safe to call repeatedly.
+ */
+export async function enrichFullMessages(
+  db: Database,
+): Promise<{ enriched: number; pending: number }> {
+  const rows = db
+    .prepare(
+      `SELECT id, listserv_url FROM eating_club_events
+       WHERE body_complete = 0 AND listserv_url != ''
+       ORDER BY date DESC
+       LIMIT 100`,
+    )
+    .all() as { id: number; listserv_url: string }[];
+  if (rows.length === 0) return { enriched: 0, pending: 0 };
+
+  console.log(`[eatingclubs] Fetching full bodies for ${rows.length} emails...`);
+  const update = db.prepare(
+    `UPDATE eating_club_events
+     SET body_html = ?, body_text = ?, images = ?, body_complete = 1
+     WHERE id = ?`,
+  );
+  const giveUp = db.prepare("UPDATE eating_club_events SET body_complete = 1 WHERE id = ?");
+
+  let enriched = 0;
+  for (const row of rows) {
+    try {
+      const full = await fetchFullMessage(row.listserv_url);
+      if (full) {
+        update.run(full.bodyHtml, stripHtml(full.bodyHtml), JSON.stringify(full.images), row.id);
+        enriched++;
+      } else {
+        // No body attachment on the page — nothing more to fetch, stop retrying
+        giveUp.run(row.id);
+      }
+    } catch (err: any) {
+      console.error(`[eatingclubs] Full-body fetch failed for #${row.id}: ${err.message}`);
+    }
+    // Be gentle with the LISTSERV server
+    await new Promise((r) => setTimeout(r, 150));
+  }
+
+  console.log(`[eatingclubs] Enriched ${enriched}/${rows.length} emails`);
+  return { enriched, pending: rows.length - enriched };
 }
 
 // ── public API ───────────────────────────────────────────────────────
@@ -229,6 +396,12 @@ export async function scrapeWhitmanwire(
   await login();
   const emails = await fetchWhitmanwireRss(limit);
   const { stored } = await classifyAndStore(db, emails);
+
+  // Fill in complete bodies + images for anything still truncated (background)
+  enrichFullMessages(db).catch((err) =>
+    console.error("[eatingclubs] Full-body enrichment failed:", err.message),
+  );
+
   return { total: emails.length, stored };
 }
 
@@ -238,7 +411,8 @@ export function startEatingClubScraper(db: Database, intervalMs = 30 * 60 * 1000
   const run = () =>
     scrapeWhitmanwire(db)
       .then(({ total, stored }) => {
-        if (stored > 0) console.log(`[eatingclubs] Scraped: ${stored} new events / ${total} from RSS`);
+        if (stored > 0)
+          console.log(`[eatingclubs] Scraped: ${stored} new events / ${total} from RSS`);
       })
       .catch((err) => console.error("[eatingclubs] Scrape failed:", err.message));
 
@@ -248,5 +422,8 @@ export function startEatingClubScraper(db: Database, intervalMs = 30 * 60 * 1000
 }
 
 export function stopEatingClubScraper(): void {
-  if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 }

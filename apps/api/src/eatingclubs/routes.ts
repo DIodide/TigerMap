@@ -4,8 +4,9 @@
 
 import type { Database } from "bun:sqlite";
 import type { FastifyInstance } from "fastify";
+import { fetchAuthenticatedImage } from "../freefood/scraper.js";
 import { EATING_CLUBS } from "./classifier.js";
-import { importFromJson, scrapeWhitmanwire } from "./scraper.js";
+import { enrichFullMessages, importFromJson, scrapeWhitmanwire } from "./scraper.js";
 
 export function registerEatingClubRoutes(app: FastifyInstance, db: Database) {
   /** GET /api/eating-clubs — list all clubs with their latest events */
@@ -102,6 +103,51 @@ export function registerEatingClubRoutes(app: FastifyInstance, db: Database) {
       .all();
 
     reply.send({ ...stats, byClub });
+  });
+
+  /**
+   * GET /api/eating-clubs/image/:eventId/:index — image proxy.
+   * LISTSERV-hosted attachments need our login; anything else redirects to
+   * the original URL (e.g. imgur images embedded by Hoagie Mail).
+   */
+  app.get("/api/eating-clubs/image/:eventId/:index", async (req, reply) => {
+    const { eventId, index } = req.params as { eventId: string; index: string };
+    const row = db.prepare("SELECT images FROM eating_club_events WHERE id = ?").get(eventId) as
+      | { images: string }
+      | undefined;
+    if (!row) return reply.code(404).send({ error: "Not found" });
+
+    const images: string[] = JSON.parse(row.images || "[]");
+    const idx = Number(index);
+    if (!(idx >= 0 && idx < images.length)) return reply.code(404).send({ error: "No such image" });
+
+    const url = images[idx];
+    if (!url.includes("lists.princeton.edu")) return reply.redirect(url);
+
+    const data = await fetchAuthenticatedImage(url);
+    if (!data) return reply.code(502).send({ error: "Failed to fetch image" });
+
+    const lower = url.toLowerCase();
+    const contentType = lower.includes("png")
+      ? "image/png"
+      : lower.includes("gif")
+        ? "image/gif"
+        : lower.includes("webp")
+          ? "image/webp"
+          : "image/jpeg";
+    reply.header("Content-Type", contentType);
+    reply.header("Cache-Control", "public, max-age=86400");
+    return reply.send(Buffer.from(data));
+  });
+
+  /** POST /api/eating-clubs/enrich — fetch full bodies + images for truncated events */
+  app.post("/api/eating-clubs/enrich", async (_req, reply) => {
+    try {
+      const result = await enrichFullMessages(db);
+      reply.send({ ok: true, ...result });
+    } catch (err: any) {
+      reply.status(500).send({ ok: false, error: err.message });
+    }
   });
 
   /** POST /api/eating-clubs/scrape — manual scrape trigger */
