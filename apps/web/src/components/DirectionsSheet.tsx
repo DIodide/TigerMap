@@ -4,10 +4,11 @@
  * matching the route line.
  */
 
-import { Bike, Footprints, LocateFixed, MapPin, X } from "lucide-react";
+import { Bike, Footprints, LocateFixed, MapPin, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { LatLng, RouteInfo, TravelProfile } from "../utils/directions";
 import { formatArrival, formatDistance, formatMinutes } from "../utils/directions";
+import type { LocateError } from "../utils/geolocation";
 
 export interface DirectionsState {
   dest: { name: string; lat: number; lng: number; cat?: string };
@@ -15,7 +16,15 @@ export interface DirectionsState {
   routes: Partial<Record<TravelProfile, RouteInfo>> | null;
   profile: TravelProfile;
   status: "locating" | "routing" | "ready" | "no-location" | "error";
+  /** Why locating failed, when status is "no-location" */
+  locateError: LocateError | null;
 }
+
+const LOCATE_MESSAGES: Record<LocateError, string> = {
+  denied: "Location is blocked for this site",
+  unavailable: "Couldn't get a fix on your location",
+  unsupported: "This browser can't share your location",
+};
 
 interface DirectionsSheetProps {
   state: DirectionsState;
@@ -122,7 +131,7 @@ export function DirectionsSheet({
         : status === "ready" && active
           ? `${formatDistance(active.distanceM)} · arrive ${formatArrival(active.durationS)}`
           : status === "no-location"
-            ? "Directions need your location"
+            ? LOCATE_MESSAGES[state.locateError ?? "unavailable"]
             : "No route found";
 
   return (
@@ -170,14 +179,30 @@ export function DirectionsSheet({
 
         {/* Actions */}
         <div className="mt-3.5">
-          {status === "no-location" ? (
+          {status === "no-location" && state.locateError === "denied" ? (
+            <>
+              <button
+                type="button"
+                onClick={onRetry}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e77500] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d06a00]"
+              >
+                <LocateFixed size={17} />
+                Enable location
+              </button>
+              <p className="mt-2.5 text-xs leading-relaxed text-gray-500">
+                Allow location for this site in your browser's site settings. On a Mac, your browser
+                also needs Location Services on under System Settings → Privacy &amp; Security.
+              </p>
+            </>
+          ) : status === "no-location" && state.locateError === "unsupported" ? null : status ===
+            "no-location" ? (
             <button
               type="button"
               onClick={onRetry}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e77500] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d06a00]"
             >
-              <LocateFixed size={17} />
-              Enable location
+              <RefreshCw size={16} />
+              Try again
             </button>
           ) : status === "error" ? (
             <button

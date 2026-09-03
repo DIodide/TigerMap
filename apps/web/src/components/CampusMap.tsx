@@ -12,6 +12,7 @@ import {
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "../types";
 import { getCategoryColor, getCategoryIcon } from "../utils/categories";
 import type { LatLng, RouteInfo } from "../utils/directions";
+import { rememberFix } from "../utils/geolocation";
 
 const CAMPUS_MAP_TOKEN = import.meta.env.VITE_CAMPUS_MAP_TOKEN;
 const CAMPUS_MAP_STYLE = import.meta.env.VITE_CAMPUS_MAP_STYLE;
@@ -269,6 +270,15 @@ export function CampusMap({
         trackUserLocation
         showUserHeading
         positionOptions={{ enableHighAccuracy: true }}
+        // Let directions reuse the blue-dot fix instead of asking again
+        onGeolocate={(e) =>
+          rememberFix({
+            lat: e.coords.latitude,
+            lng: e.coords.longitude,
+            accuracy: e.coords.accuracy,
+            at: Date.now(),
+          })
+        }
       />
 
       {/* Active route (orange over a white casing for contrast) */}

@@ -8,7 +8,8 @@ import { FreefoodDetail } from "./components/FreefoodDetail";
 import { POIDetail } from "./components/POIDetail";
 import { SearchBar } from "./components/SearchBar";
 import type { DiningHallMenu, EatingClub, FreefoodPost, POI } from "./types";
-import { type TravelProfile, fetchRoutes } from "./utils/directions";
+import { type LatLng, type TravelProfile, fetchRoutes } from "./utils/directions";
+import { distanceM, getRecentFix, locate } from "./utils/geolocation";
 
 type DetailPanel =
   | { kind: "poi"; data: POI }
@@ -56,34 +57,49 @@ export function App() {
   const startDirections = useCallback((dest: Destination) => {
     setDetail(null);
     setSidebarOpen(false);
+
+    // Route right away from a recent fix (ours or the locate-me button's),
+    // then refresh the position in the background.
+    const cached = getRecentFix();
     setDirections({
       dest,
-      origin: null,
+      origin: cached,
       routes: null,
       profile: lastProfile.current,
-      status: "locating",
+      status: cached ? "routing" : "locating",
+      locateError: null,
     });
 
-    if (!navigator.geolocation) {
-      setDirections((d) => (d?.dest === dest ? { ...d, status: "no-location" } : d));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const origin = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setDirections((d) => (d?.dest === dest ? { ...d, origin, status: "routing" } : d));
-        fetchRoutes(origin, dest).then((routes) => {
-          setDirections((d) => {
-            if (d?.dest !== dest) return d;
-            if (!routes.walking && !routes.cycling) return { ...d, status: "error" };
-            const profile = routes[d.profile] ? d.profile : routes.walking ? "walking" : "cycling";
-            return { ...d, routes, profile, status: "ready" };
-          });
+    const routeFrom = (origin: LatLng) =>
+      fetchRoutes(origin, dest).then((routes) => {
+        setDirections((d) => {
+          if (d?.dest !== dest) return d;
+          if (!routes.walking && !routes.cycling) return { ...d, status: "error" };
+          const profile = routes[d.profile] ? d.profile : routes.walking ? "walking" : "cycling";
+          return { ...d, origin, routes, profile, status: "ready" };
         });
-      },
-      () => setDirections((d) => (d?.dest === dest ? { ...d, status: "no-location" } : d)),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
-    );
+      });
+
+    if (cached) routeFrom(cached);
+
+    locate().then((result) => {
+      if (!result.ok) {
+        // Already routed from the cached fix — a failed refresh doesn't matter
+        if (cached) return;
+        setDirections((d) =>
+          d?.dest === dest ? { ...d, status: "no-location", locateError: result.error } : d,
+        );
+        return;
+      }
+      // Only re-route when the fresh fix is meaningfully away from the cached one
+      if (cached && distanceM(cached, result.fix) < 30) return;
+      if (!cached) {
+        setDirections((d) =>
+          d?.dest === dest ? { ...d, origin: result.fix, status: "routing" } : d,
+        );
+      }
+      routeFrom(result.fix);
+    });
   }, []);
 
   const selectProfile = useCallback((profile: TravelProfile) => {
