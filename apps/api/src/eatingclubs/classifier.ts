@@ -38,7 +38,7 @@ export const EATING_CLUBS: EatingClub[] = [
   },
   {
     name: "Colonial Club",
-    aliases: ["colonial", "colonial club"],
+    aliases: ["colonial", "colonial club", "colo"],
     lat: 40.3489,
     lng: -74.6528,
     sprite: "colonial",
@@ -87,69 +87,18 @@ export const EATING_CLUBS: EatingClub[] = [
   },
 ];
 
-const CLUB_NAMES = EATING_CLUBS.map((c) => c.name).join(", ");
-
-/** Keywords that suggest an email might be about an eating club event. */
-const EC_KEYWORDS = [
-  // Club name tags in subject (most reliable)
-  "[ti]",
-  "[tfc]",
-  "[ptc]",
-  "[quad]",
-  "[pcc]",
-  "[cde]",
-  "[tiger",
-  "[ivy]",
-  "[cottage]",
-  "[colonial]",
-  "[terrace]",
-  "[tower]",
-  "[charter]",
-  "[cloister]",
-  "[cannon]",
-  "[cap",
-  // Club names with context
-  "tiger inn",
-  "ivy club",
-  "cap and gown",
-  "cap & gown",
-  "colonial club",
-  "tower club",
-  "quadrangle club",
-  "terrace club",
-  "charter club",
-  "cloister inn",
-  "cannon dial elm",
-  // Abbreviations
-  "@ tfc",
-  "@ ptc",
-  "@ ti ",
-  "@ colo",
-  "@ quad",
-  "@ terrace",
-  "@ tower",
-  "@ colonial",
-  "@ cottage",
-  "@ charter",
-  "@ cap",
-  "@ cloister",
-  "@ cannon",
-  "@ ivy",
-  // Event types unique to eating clubs
-  "puid",
-  "list party",
-  "tap night",
-  "lawnparties",
-  "lawn parties",
-  "eating club",
-  "the street",
-];
-
-/** Quick keyword pre-filter to avoid unnecessary LLM calls. */
-export function mightBeEatingClubEvent(subject: string, bodyText: string): boolean {
-  const text = ` ${subject} ${bodyText.slice(0, 500)} `.toLowerCase();
-  return EC_KEYWORDS.some((kw) => text.includes(kw));
-}
+/** Street addresses — emails often name the venue only by address. */
+const CLUB_ADDRESSES = `Cannon Dial Elm — 21 Prospect Ave (CDE)
+Cap and Gown — 61 Prospect Ave (CNG, Cap)
+Charter Club — 79 Prospect Ave (PCC)
+Cloister Inn — 65 Prospect Ave
+Colonial Club — 40 Prospect Ave (Colo)
+Cottage Club — 51 Prospect Ave (UCC)
+Ivy Club — 43 Prospect Ave
+Quadrangle Club — 33 Prospect Ave (Quad)
+Terrace Club — 62 Washington Rd (TFC)
+Tiger Inn — 48 Prospect Ave (TI)
+Tower Club — 13 Prospect Ave (PTC)`;
 
 export interface ClassificationResult {
   isEatingClubEvent: boolean;
@@ -159,13 +108,14 @@ export interface ClassificationResult {
 
 const SYSTEM_PROMPT = `You classify Princeton University emails as eating club events.
 
-Eating clubs are social/dining clubs on Prospect Avenue. Events include: PUID parties, LIST parties, open parties, tap nights, bicker events, lawnparties, band nights, themed parties, formals, study breaks, and club-specific social events.
+Eating clubs are social/dining clubs on Prospect Avenue. Events include: PUID parties, LIST parties, open parties, tap nights, bicker and pre-bicker events, lawnparties, band nights, themed parties, formals, study breaks, member dinners, trivia nights, street week events, and other club-hosted socials.
 
-NOT eating club events: academic talks, club sports, student org meetings, selling tickets, lost & found, job postings, performances (unless AT an eating club).
+An email counts when the event is hosted by or held at one of the eleven clubs below — whether the club is named directly, by nickname or abbreviation, or only by its street address.
 
-Eating clubs: ${CLUB_NAMES}
+NOT eating club events: academic talks, club sports, student org meetings, selling tickets, lost & found, job postings, performances (unless AT an eating club), and anything not tied to one of these clubs.
 
-Common abbreviations: TI=Tiger Inn, TFC=Terrace Club, PTC=Tower Club, UCC=Cottage, CNG=Cap and Gown, PCC=Charter, CDE=Cannon Dial Elm
+Clubs and addresses:
+${CLUB_ADDRESSES}
 
 Respond in this exact format (nothing else):
 EVENT: yes or no

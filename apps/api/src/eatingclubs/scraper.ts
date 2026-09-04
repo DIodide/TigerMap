@@ -5,8 +5,8 @@
  *  1. Import from TheForum's WHITMANWIRE JSON export (bulk, one-time)
  *  2. Ongoing RSS scraping from WHITMANWIRE listserv (same auth as FREEFOOD)
  *
- * Emails are pre-filtered by keywords, then classified by Gemini Flash Lite.
- * Only eating-club-related events are stored.
+ * Every new email is classified once by Gemini Flash Lite (verdicts are kept
+ * in seen_messages). Only eating-club-related events are stored.
  */
 
 import { Database } from "bun:sqlite";
@@ -16,7 +16,6 @@ import {
   type ClassificationResult,
   EATING_CLUBS,
   classifyEmail,
-  mightBeEatingClubEvent,
   resolveClub,
 } from "./classifier.js";
 
@@ -164,6 +163,17 @@ export function initEatingClubDb(dataDir: string): Database {
   db.run("CREATE INDEX IF NOT EXISTS idx_ec_date ON eating_club_events(date DESC)");
   db.run("CREATE INDEX IF NOT EXISTS idx_ec_club ON eating_club_events(club_name)");
 
+  // Every WHITMANWIRE email the classifier has ruled on, so it's never re-sent
+  db.run(`
+    CREATE TABLE IF NOT EXISTS seen_messages (
+      message_id  TEXT PRIMARY KEY,
+      subject     TEXT,
+      date        TEXT,
+      verdict     TEXT NOT NULL,
+      checked_at  TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migration: track whether the full body has been fetched from LISTSERV.
   // Rows imported from TheForum's export already carry full bodies + images.
   const cols = db.prepare("PRAGMA table_info(eating_club_events)").all() as { name: string }[];
@@ -245,9 +255,6 @@ async function classifyAndStore(
   db: Database,
   emails: RawEmail[],
 ): Promise<{ processed: number; stored: number }> {
-  // Pre-filter by keywords
-  const candidates = emails.filter((e) => mightBeEatingClubEvent(e.subject, e.body_text));
-
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO eating_club_events (
       message_id, subject, author_name, author_email, date,
@@ -255,44 +262,66 @@ async function classifyAndStore(
       club_name, club_lat, club_lng, event_type
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const markSeen = db.prepare(
+    "INSERT OR REPLACE INTO seen_messages (message_id, subject, date, verdict) VALUES (?, ?, ?, ?)",
+  );
+  const alreadyHandled = db.prepare(
+    `SELECT 1 FROM eating_club_events WHERE message_id = ?
+     UNION SELECT 1 FROM seen_messages WHERE message_id = ?`,
+  );
+
+  // Every email is classified by the LLM exactly once. A keyword gate used to
+  // run first, but it dropped real events that only named a club by its
+  // street address or nickname.
+  const pending = emails.filter(
+    (e) => e.message_id && !alreadyHandled.get(e.message_id, e.message_id),
+  );
+  if (pending.length === 0) return { processed: 0, stored: 0 };
 
   let stored = 0;
-  for (const email of candidates) {
-    // Skip if already in DB
-    const exists = db
-      .prepare("SELECT 1 FROM eating_club_events WHERE message_id = ?")
-      .get(email.message_id);
-    if (exists) continue;
-
+  let consecutiveFailures = 0;
+  for (const email of pending) {
     const result = await classifyEmail(email.subject, email.body_text);
-    if (!result || !result.isEatingClubEvent || !result.clubName) {
-      await new Promise((r) => setTimeout(r, 80));
+    if (!result) {
+      // API failure — leave it unrecorded so the next cycle retries, and stop
+      // hammering a failing API
+      if (++consecutiveFailures >= 3) {
+        console.error("[eatingclubs] LLM API failing repeatedly — aborting this pass");
+        break;
+      }
       continue;
     }
+    consecutiveFailures = 0;
 
-    const club = EATING_CLUBS.find((c) => c.name === result.clubName);
-    if (!club) continue;
-
-    stmt.run(
-      email.message_id,
-      email.subject,
-      email.author_name,
-      email.author_email,
-      email.date,
-      email.body_html,
-      email.body_text,
-      JSON.stringify(email.images),
-      email.listserv_url,
-      club.name,
-      club.lat,
-      club.lng,
-      result.eventType,
-    );
-    stored++;
+    const club =
+      result.isEatingClubEvent && result.clubName
+        ? EATING_CLUBS.find((c) => c.name === result.clubName)
+        : undefined;
+    if (club) {
+      stmt.run(
+        email.message_id,
+        email.subject,
+        email.author_name,
+        email.author_email,
+        email.date,
+        email.body_html,
+        email.body_text,
+        JSON.stringify(email.images),
+        email.listserv_url,
+        club.name,
+        club.lat,
+        club.lng,
+        result.eventType,
+      );
+      stored++;
+      markSeen.run(email.message_id, email.subject, email.date, "event");
+    } else {
+      markSeen.run(email.message_id, email.subject, email.date, "not_event");
+    }
     await new Promise((r) => setTimeout(r, 80));
   }
 
-  return { processed: candidates.length, stored };
+  return { processed: pending.length, stored };
 }
 
 // ── JSON import (bulk, from TheForum) ────────────────────────────────
